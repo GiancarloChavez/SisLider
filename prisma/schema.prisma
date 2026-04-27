@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  nombre       String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(100)
+  passwordHash String   @map("password_hash")
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  asistencias Asistencia[]
+  abonos      Abono[]
+
+  @@map("usuarios")
+}
+
+model Tutor {
+  id               String  @id @default(uuid())
+  nombre           String  @db.VarChar(100)
+  apellido         String  @db.VarChar(100)
+  celular          String  @db.VarChar(20)
+  celularAdicional String? @map("celular_adicional") @db.VarChar(20)
+  relacion         String  @db.VarChar(50)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tutorAlumnos TutorAlumno[]
+
+  @@map("tutores")
+}
+
+model Alumno {
+  id              String    @id @default(uuid())
+  nombre          String    @db.VarChar(100)
+  apellido        String    @db.VarChar(100)
+  dni             String?   @unique @db.VarChar(8)
+  fechaNacimiento DateTime? @map("fecha_nacimiento") @db.Date
+  habilitado      Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tutorAlumnos TutorAlumno[]
+  matriculas   Matricula[]
+
+  @@map("alumnos")
+}
+
+model TutorAlumno {
+  id          String  @id @default(uuid())
+  idTutor     String  @map("id_tutor")
+  idAlumno    String  @map("id_alumno")
+  esPrincipal Boolean @default(true) @map("es_principal")
+
+  tutor  Tutor  @relation(fields: [idTutor], references: [id])
+  alumno Alumno @relation(fields: [idAlumno], references: [id])
+
+  @@unique([idTutor, idAlumno])
+  @@map("tutor_alumno")
+}
+
+model Docente {
+  id           String   @id @default(uuid())
+  nombre       String   @db.VarChar(100)
+  apellido     String   @db.VarChar(100)
+  celular      String?  @db.VarChar(20)
+  especialidad String?  @db.VarChar(100)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  horarios Horario[]
+
+  @@map("docentes")
+}
+
+model Aula {
+  id        String  @id @default(uuid())
+  nombre    String  @db.VarChar(50)
+  capacidad Int     @default(20)
+  activa    Boolean @default(true)
+
+  horarios Horario[]
+
+  @@map("aulas")
+}
+
+model Curso {
+  id            String   @id @default(uuid())
+  nombre        String   @db.VarChar(100)
+  nivel         String?  @db.VarChar(50)
+  precioMensual Decimal  @map("precio_mensual") @db.Decimal(10, 2)
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  horarios Horario[]
+
+  @@map("cursos")
+}
+
+model Horario {
+  id         String   @id @default(uuid())
+  idCurso    String   @map("id_curso")
+  idDocente  String   @map("id_docente")
+  idAula     String   @map("id_aula")
+  horaInicio DateTime @map("hora_inicio") @db.Time
+  horaFin    DateTime @map("hora_fin") @db.Time
+  cupoMaximo Int      @default(20) @map("cupo_maximo")
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  curso          Curso          @relation(fields: [idCurso], references: [id])
+  docente        Docente        @relation(fields: [idDocente], references: [id])
+  aula           Aula           @relation(fields: [idAula], references: [id])
+  dias           HorarioDia[]
+  matriculas     Matricula[]
+  recuperaciones Recuperacion[]
+
+  @@map("horarios")
+}
+
+model HorarioDia {
+  id        String @id @default(uuid())
+  idHorario String @map("id_horario")
+  dia       String @db.VarChar(10)
+
+  horario Horario @relation(fields: [idHorario], references: [id])
+
+  @@map("horario_dias")
+}
+
+model GrupoDescuento {
+  id          String  @id @default(uuid())
+  nombre      String  @db.VarChar(100)
+  descripcion String?
+  activo      Boolean @default(true)
+
+  descuentos Descuento[]
+
+  @@map("grupo_descuentos")
+}
+
+model Descuento {
+  id         String  @id @default(uuid())
+  idGrupo    String? @map("id_grupo")
+  nombre     String  @db.VarChar(100)
+  tipo       String  @db.VarChar(20)
+  valor      Decimal @db.Decimal(10, 2)
+  automatico Boolean @default(true)
+  activo     Boolean @default(true)
+
+  grupo      GrupoDescuento? @relation(fields: [idGrupo], references: [id])
+  matriculas Matricula[]
+
+  @@map("descuentos")
+}
+
+model Matricula {
+  id                 String    @id @default(uuid())
+  idAlumno           String    @map("id_alumno")
+  idHorario          String    @map("id_horario")
+  idDescuento        String?   @map("id_descuento")
+  precioFinalMensual Decimal   @map("precio_final_mensual") @db.Decimal(10, 2)
+  fechaInicio        DateTime  @default(now()) @map("fecha_inicio") @db.Date
+  fechaFin           DateTime? @map("fecha_fin") @db.Date
+  estado             String    @default("activa") @db.VarChar(20)
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  alumno      Alumno       @relation(fields: [idAlumno], references: [id])
+  horario     Horario      @relation(fields: [idHorario], references: [id])
+  descuento   Descuento?   @relation(fields: [idDescuento], references: [id])
+  dias        MatriculaDia[]
+  mesesPago   MesPago[]
+  asistencias Asistencia[]
+
+  @@unique([idAlumno, idHorario])
+  @@map("matriculas")
+}
+
+model MatriculaDia {
+  id          String @id @default(uuid())
+  idMatricula String @map("id_matricula")
+  dia         String @db.VarChar(10)
+
+  matricula Matricula @relation(fields: [idMatricula], references: [id])
+
+  @@map("matricula_dias")
+}
+
+model MesPago {
+  id               String    @id @default(uuid())
+  idMatricula      String    @map("id_matricula")
+  anio             Int
+  mes              Int
+  montoTotal       Decimal   @map("monto_total") @db.Decimal(10, 2)
+  montoPagado      Decimal   @default(0) @map("monto_pagado") @db.Decimal(10, 2)
+  estado           String    @default("pendiente") @db.VarChar(20)
+  fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  matricula Matricula @relation(fields: [idMatricula], references: [id])
+  abonos    Abono[]
+
+  @@unique([idMatricula, anio, mes])
+  @@map("meses_pago")
+}
+
+model Abono {
+  id          String   @id @default(uuid())
+  idMesPago   String   @map("id_mes_pago")
+  idUsuario   String   @map("id_usuario")
+  monto       Decimal  @db.Decimal(10, 2)
+  metodoPago  String   @default("efectivo") @map("metodo_pago") @db.VarChar(20)
+  fechaPago   DateTime @default(now()) @map("fecha_pago")
+  observacion String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  mesPago MesPago @relation(fields: [idMesPago], references: [id])
+  usuario Usuario @relation(fields: [idUsuario], references: [id])
+
+  @@map("abonos")
+}
+
+model Asistencia {
+  id          String   @id @default(uuid())
+  idMatricula String   @map("id_matricula")
+  idUsuario   String   @map("id_usuario")
+  fecha       DateTime @db.Date
+  estado      String   @default("presente") @db.VarChar(20)
+  observacion String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  matricula    Matricula     @relation(fields: [idMatricula], references: [id])
+  usuario      Usuario       @relation(fields: [idUsuario], references: [id])
+  recuperacion Recuperacion?
+
+  @@unique([idMatricula, fecha])
+  @@map("asistencias")
+}
+
+model Recuperacion {
+  id                   String    @id @default(uuid())
+  idAsistencia         String    @unique @map("id_asistencia")
+  idHorarioRecuperacion String?  @map("id_horario_recuperacion")
+  fechaRecuperacion    DateTime? @map("fecha_recuperacion") @db.Date
+  estado               String    @default("pendiente") @db.VarChar(20)
+  observacion          String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  asistencia Asistencia @relation(fields: [idAsistencia], references: [id])
+  horario    Horario?   @relation(fields: [idHorarioRecuperacion], references: [id])
+
+  @@map("recuperaciones")
+}
