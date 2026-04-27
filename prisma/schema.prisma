@@ -41,6 +41,7 @@ model Alumno {
   nombre          String    @db.VarChar(100)
   apellido        String    @db.VarChar(100)
   dni             String?   @unique @db.VarChar(8)
+  celular         String?   @db.VarChar(20)
   fechaNacimiento DateTime? @map("fecha_nacimiento") @db.Date
   habilitado      Boolean   @default(false)
   createdAt       DateTime  @default(now()) @map("created_at")

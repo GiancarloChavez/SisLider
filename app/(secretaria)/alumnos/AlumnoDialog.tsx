@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState, useState } from "react";
+import { useEffect, useActionState, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,16 +28,63 @@ type Props = {
 
 const initialState: AlumnoFormState = {};
 
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+const SELECT_CLASS =
+  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+
+const ANIO_ACTUAL = new Date().getFullYear();
+const ANIOS = Array.from({ length: ANIO_ACTUAL - 1929 }, (_, i) => ANIO_ACTUAL - i);
+
 export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const action = alumno ? updateAlumno.bind(null, alumno.id) : createAlumno;
   const [state, formAction, pending] = useActionState(action, initialState);
 
-  // Default: tiene apoderado activado (caso más común: alumno menor)
   const [tieneApoderado, setTieneApoderado] = useState(true);
 
-  // Resetear toggle cada vez que se abre el dialog para un nuevo alumno
+  // Date picker state
+  const [birthDay, setBirthDay]     = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear]   = useState("");
+
+  // Combined ISO date for hidden input
+  const fechaNacimiento =
+    birthDay && birthMonth && birthYear
+      ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
+      : "";
+
+  // Max days for selected month/year
+  const maxDays = useMemo(() => {
+    if (!birthMonth || !birthYear) return 31;
+    return new Date(Number(birthYear), Number(birthMonth), 0).getDate();
+  }, [birthMonth, birthYear]);
+
+  // Reset day if it exceeds the new month's max
   useEffect(() => {
-    if (open && !alumno) setTieneApoderado(true);
+    if (birthDay && Number(birthDay) > maxDays) setBirthDay("");
+  }, [maxDays, birthDay]);
+
+  // Initialize / reset state when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    if (!alumno) {
+      setTieneApoderado(true);
+      setBirthDay("");
+      setBirthMonth("");
+      setBirthYear("");
+    } else if (alumno.fechaNacimiento) {
+      const d = new Date(alumno.fechaNacimiento);
+      setBirthDay(String(d.getUTCDate()));
+      setBirthMonth(String(d.getUTCMonth() + 1));
+      setBirthYear(String(d.getUTCFullYear()));
+    } else {
+      setBirthDay("");
+      setBirthMonth("");
+      setBirthYear("");
+    }
   }, [open, alumno]);
 
   useEffect(() => {
@@ -57,6 +104,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
         </DialogHeader>
 
         <form action={formAction} className="space-y-5">
+          {/* Hidden input with combined fecha */}
+          <input type="hidden" name="fechaNacimiento" value={fechaNacimiento} />
 
           {/* ── Datos del alumno ──────────────────────────────── */}
           <div className="space-y-3">
@@ -100,24 +149,71 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                 {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="fechaNacimiento">Fecha de nacimiento</Label>
+                <Label htmlFor="celular">Celular de contacto</Label>
                 <Input
-                  id="fechaNacimiento"
-                  name="fechaNacimiento"
-                  type="date"
-                  defaultValue={alumno?.fechaNacimiento?.slice(0, 10) ?? ""}
+                  id="celular"
+                  name="celular"
+                  defaultValue={alumno?.celular ?? ""}
+                  placeholder="987654321"
+                  maxLength={20}
                 />
-                {e.fechaNacimiento && (
-                  <p className="text-xs text-destructive">{e.fechaNacimiento[0]}</p>
-                )}
+                {e.celular && <p className="text-xs text-destructive">{e.celular[0]}</p>}
               </div>
+            </div>
+
+            {/* Date picker — tres selects */}
+            <div className="space-y-1.5">
+              <Label>Fecha de nacimiento</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <select
+                    aria-label="Día"
+                    className={SELECT_CLASS}
+                    value={birthDay}
+                    onChange={(e) => setBirthDay(e.target.value)}
+                  >
+                    <option value="">Día</option>
+                    {Array.from({ length: maxDays }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <select
+                    aria-label="Mes"
+                    className={SELECT_CLASS}
+                    value={birthMonth}
+                    onChange={(e) => setBirthMonth(e.target.value)}
+                  >
+                    <option value="">Mes</option>
+                    {MESES.map((m, i) => (
+                      <option key={i + 1} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <select
+                    aria-label="Año"
+                    className={SELECT_CLASS}
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                  >
+                    <option value="">Año</option>
+                    {ANIOS.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {e.fechaNacimiento && (
+                <p className="text-xs text-destructive">{e.fechaNacimiento[0]}</p>
+              )}
             </div>
           </div>
 
-          {/* ── Toggle / Apoderado ────────────────────────────── */}
+          {/* ── Toggle + sección apoderado ────────────────────── */}
           <div className="border-t border-zinc-100 pt-4 space-y-4">
 
-            {/* Solo mostrar toggle al crear */}
             {!alumno && (
               <label
                 className={cn(
@@ -139,14 +235,14 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                     El alumno tiene apoderado
                   </p>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Actívalo si es menor de edad o si un padre/madre lo representa.
+                    Actívalo si un padre, madre u otro responsable lo representa.
                     Desactívalo si el alumno es adulto y se matricula por cuenta propia.
                   </p>
                 </div>
               </label>
             )}
 
-            {/* Campos del apoderado — al crear cuando está activado */}
+            {/* Campos del apoderado */}
             {!alumno && tieneApoderado && (
               <div className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
@@ -202,7 +298,7 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
               </div>
             )}
 
-            {/* Al editar: mostrar tutor actual si existe (solo lectura) */}
+            {/* Al editar: tutor en modo solo lectura */}
             {alumno && alumno.tutor && (
               <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-3 space-y-0.5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1">
@@ -219,7 +315,7 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
 
             {alumno && !alumno.tutor && (
               <p className="text-xs text-zinc-400 italic">
-                Sin apoderado registrado — alumno autónomo.
+                Sin apoderado — alumno autónomo.
               </p>
             )}
           </div>

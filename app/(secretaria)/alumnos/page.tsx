@@ -23,6 +23,7 @@ const getAlumnos = unstable_cache(
         nombre: a.nombre,
         apellido: a.apellido,
         dni: a.dni,
+        celular: a.celular,
         fechaNacimiento: a.fechaNacimiento?.toISOString() ?? null,
         habilitado: a.habilitado,
         createdAt: a.createdAt.toISOString(),

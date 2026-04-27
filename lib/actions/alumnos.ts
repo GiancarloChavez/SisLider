@@ -9,6 +9,7 @@ export type AlumnoSerialized = {
   nombre: string;
   apellido: string;
   dni: string | null;
+  celular: string | null;
   fechaNacimiento: string | null;
   habilitado: boolean;
   createdAt: string;
@@ -29,6 +30,7 @@ const alumnoSchema = z.object({
     .regex(/^\d+$/, "Solo dígitos")
     .optional()
     .or(z.literal("")),
+  celular: z.string().max(20).optional().or(z.literal("")),
   fechaNacimiento: z.string().optional().or(z.literal("")),
 });
 
@@ -50,6 +52,7 @@ export async function createAlumno(
     nombre: formData.get("nombre"),
     apellido: formData.get("apellido"),
     dni: formData.get("dni") || undefined,
+    celular: formData.get("celular") || undefined,
     fechaNacimiento: formData.get("fechaNacimiento") || undefined,
   });
 
@@ -79,7 +82,10 @@ export async function createAlumno(
         nombre: alumnoData.nombre,
         apellido: alumnoData.apellido,
         dni: alumnoData.dni || null,
-        fechaNacimiento: alumnoData.fechaNacimiento ? new Date(alumnoData.fechaNacimiento) : null,
+        celular: alumnoData.celular || null,
+        fechaNacimiento: alumnoData.fechaNacimiento
+          ? new Date(alumnoData.fechaNacimiento)
+          : null,
       },
     });
 
@@ -112,6 +118,7 @@ export async function updateAlumno(
     nombre: formData.get("nombre"),
     apellido: formData.get("apellido"),
     dni: formData.get("dni") || undefined,
+    celular: formData.get("celular") || undefined,
     fechaNacimiento: formData.get("fechaNacimiento") || undefined,
   });
 
@@ -123,6 +130,7 @@ export async function updateAlumno(
       nombre: parsed.data.nombre,
       apellido: parsed.data.apellido,
       dni: parsed.data.dni || null,
+      celular: parsed.data.celular || null,
       fechaNacimiento: parsed.data.fechaNacimiento
         ? new Date(parsed.data.fechaNacimiento)
         : null,

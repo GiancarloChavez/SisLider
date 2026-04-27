@@ -20,6 +20,16 @@ type Props = {
   alumnos: AlumnoSerialized[];
 };
 
+function calcularEdad(fechaNacimiento: string | null): number | null {
+  if (!fechaNacimiento) return null;
+  const hoy = new Date();
+  const nac = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - nac.getUTCFullYear();
+  const diffMes = hoy.getMonth() - nac.getUTCMonth();
+  if (diffMes < 0 || (diffMes === 0 && hoy.getDate() < nac.getUTCDate())) edad--;
+  return edad >= 0 ? edad : null;
+}
+
 export function AlumnosTable({ alumnos }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<AlumnoSerialized | null>(null);
@@ -60,9 +70,9 @@ export function AlumnosTable({ alumnos }: Props) {
           <TableHeader>
             <TableRow className="bg-zinc-50">
               <TableHead>Alumno</TableHead>
+              <TableHead className="w-16 text-center">Edad</TableHead>
               <TableHead>DNI</TableHead>
-              <TableHead>Tutor / Apoderado</TableHead>
-              <TableHead>Contacto</TableHead>
+              <TableHead>Apoderado</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -75,63 +85,84 @@ export function AlumnosTable({ alumnos }: Props) {
                 </TableCell>
               </TableRow>
             ) : (
-              alumnos.map((alumno) => (
-                <TableRow key={alumno.id}>
-                  <TableCell className="font-medium text-zinc-900">
-                    {alumno.apellido}, {alumno.nombre}
-                  </TableCell>
-                  <TableCell className="font-mono text-zinc-500">
-                    {alumno.dni ?? <span className="text-zinc-300">—</span>}
-                  </TableCell>
-                  <TableCell className="text-zinc-700">
-                    {alumno.tutor ? (
-                      <span>
-                        {alumno.tutor.apellido}, {alumno.tutor.nombre}{" "}
-                        <span className="text-zinc-400 text-xs">({alumno.tutor.relacion})</span>
-                      </span>
-                    ) : (
-                      <span className="text-zinc-300">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-zinc-500 font-mono text-sm">
-                    {alumno.tutor?.celular ?? <span className="text-zinc-300">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={alumno.habilitado ? "default" : "secondary"}>
-                      {alumno.habilitado ? "Habilitado" : "Deshabilitado"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        onClick={() => openEdit(alumno)}
-                        title="Editar"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        onClick={() => handleToggle(alumno)}
-                        title={alumno.habilitado ? "Deshabilitar" : "Habilitar"}
-                        className={
-                          alumno.habilitado
-                            ? "text-red-500 hover:text-red-600"
-                            : "text-green-600 hover:text-green-700"
-                        }
-                      >
-                        {alumno.habilitado ? (
-                          <UserX className="h-3.5 w-3.5" />
-                        ) : (
-                          <UserCheck className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              alumnos.map((alumno) => {
+                const edad = calcularEdad(alumno.fechaNacimiento);
+                return (
+                  <TableRow key={alumno.id}>
+                    <TableCell>
+                      <p className="font-medium text-zinc-900">
+                        {alumno.apellido}, {alumno.nombre}
+                      </p>
+                      {alumno.celular && (
+                        <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                          {alumno.celular}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {edad !== null ? (
+                        <span className="text-sm font-semibold text-zinc-700">{edad}</span>
+                      ) : (
+                        <span className="text-zinc-300">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm text-zinc-500">
+                      {alumno.dni ?? <span className="text-zinc-300">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {alumno.tutor ? (
+                        <div>
+                          <p className="text-sm text-zinc-800">
+                            {alumno.tutor.apellido}, {alumno.tutor.nombre}
+                            <span className="ml-1 text-xs text-zinc-400">
+                              ({alumno.tutor.relacion})
+                            </span>
+                          </p>
+                          <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                            {alumno.tutor.celular}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-400 italic">Autónomo</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={alumno.habilitado ? "default" : "secondary"}>
+                        {alumno.habilitado ? "Habilitado" : "Deshabilitado"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => openEdit(alumno)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => handleToggle(alumno)}
+                          title={alumno.habilitado ? "Deshabilitar" : "Habilitar"}
+                          className={
+                            alumno.habilitado
+                              ? "text-red-500 hover:text-red-600"
+                              : "text-green-600 hover:text-green-700"
+                          }
+                        >
+                          {alumno.habilitado ? (
+                            <UserX className="h-3.5 w-3.5" />
+                          ) : (
+                            <UserCheck className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
