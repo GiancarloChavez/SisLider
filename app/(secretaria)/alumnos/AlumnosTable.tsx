@@ -33,14 +33,17 @@ function calcularEdad(fechaNacimiento: string | null): number | null {
 export function AlumnosTable({ alumnos }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<AlumnoSerialized | null>(null);
+  const [dialogKey, setDialogKey] = useState(0);
 
   function openCreate() {
     setSelected(null);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(alumno: AlumnoSerialized) {
     setSelected(alumno);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -169,6 +172,7 @@ export function AlumnosTable({ alumnos }: Props) {
       </div>
 
       <AlumnoDialog
+        key={dialogKey}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         alumno={selected}

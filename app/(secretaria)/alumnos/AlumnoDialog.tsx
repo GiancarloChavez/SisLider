@@ -44,6 +44,7 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
   const [tieneApoderado, setTieneApoderado] = useState(true);
+  const [handled, setHandled] = useState(false);
 
   // Date picker state
   const [birthDay, setBirthDay]     = useState("");
@@ -88,11 +89,12 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
   }, [open, alumno]);
 
   useEffect(() => {
-    if (state.message === "ok") {
+    if (state.message === "ok" && !handled) {
+      setHandled(true);
       toast.success(alumno ? "Alumno actualizado" : "Alumno registrado");
       onClose();
     }
-  }, [state.message, alumno, onClose]);
+  }, [state.message, handled, alumno, onClose]);
 
   const e = state.errors ?? {};
 
