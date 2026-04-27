@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState } from "react";
+import { useEffect, useActionState, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
-  createAlumnoConTutor,
+  createAlumno,
   updateAlumno,
   type AlumnoFormState,
   type AlumnoSerialized,
@@ -28,8 +29,16 @@ type Props = {
 const initialState: AlumnoFormState = {};
 
 export function AlumnoDialog({ open, onClose, alumno }: Props) {
-  const action = alumno ? updateAlumno.bind(null, alumno.id) : createAlumnoConTutor;
+  const action = alumno ? updateAlumno.bind(null, alumno.id) : createAlumno;
   const [state, formAction, pending] = useActionState(action, initialState);
+
+  // Default: tiene apoderado activado (caso más común: alumno menor)
+  const [tieneApoderado, setTieneApoderado] = useState(true);
+
+  // Resetear toggle cada vez que se abre el dialog para un nuevo alumno
+  useEffect(() => {
+    if (open && !alumno) setTieneApoderado(true);
+  }, [open, alumno]);
 
   useEffect(() => {
     if (state.message === "ok") {
@@ -48,9 +57,10 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
         </DialogHeader>
 
         <form action={formAction} className="space-y-5">
-          {/* Datos del alumno */}
+
+          {/* ── Datos del alumno ──────────────────────────────── */}
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
               Datos del alumno
             </p>
 
@@ -104,61 +114,115 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
             </div>
           </div>
 
-          {/* Datos del tutor — solo al crear */}
-          {!alumno && (
-            <div className="space-y-3 border-t border-zinc-100 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Tutor / Apoderado
-              </p>
+          {/* ── Toggle / Apoderado ────────────────────────────── */}
+          <div className="border-t border-zinc-100 pt-4 space-y-4">
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="tutorNombre">Nombre *</Label>
-                  <Input id="tutorNombre" name="tutorNombre" placeholder="María" />
-                  {e.tutorNombre && (
-                    <p className="text-xs text-destructive">{e.tutorNombre[0]}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="tutorApellido">Apellido *</Label>
-                  <Input id="tutorApellido" name="tutorApellido" placeholder="Pérez" />
-                  {e.tutorApellido && (
-                    <p className="text-xs text-destructive">{e.tutorApellido[0]}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="tutorCelular">Celular *</Label>
-                  <Input id="tutorCelular" name="tutorCelular" placeholder="987654321" />
-                  {e.tutorCelular && (
-                    <p className="text-xs text-destructive">{e.tutorCelular[0]}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="tutorCelularAdicional">Celular adicional</Label>
-                  <Input
-                    id="tutorCelularAdicional"
-                    name="tutorCelularAdicional"
-                    placeholder="987654321"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="tutorRelacion">Relación *</Label>
-                <Input
-                  id="tutorRelacion"
-                  name="tutorRelacion"
-                  placeholder="Madre, Padre, Abuelo..."
-                />
-                {e.tutorRelacion && (
-                  <p className="text-xs text-destructive">{e.tutorRelacion[0]}</p>
+            {/* Solo mostrar toggle al crear */}
+            {!alumno && (
+              <label
+                className={cn(
+                  "flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors select-none",
+                  tieneApoderado
+                    ? "border-zinc-900 bg-zinc-50"
+                    : "border-zinc-200 hover:border-zinc-300"
                 )}
+              >
+                <input
+                  type="checkbox"
+                  name="tieneApoderado"
+                  checked={tieneApoderado}
+                  onChange={(e) => setTieneApoderado(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
+                />
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 leading-tight">
+                    El alumno tiene apoderado
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Actívalo si es menor de edad o si un padre/madre lo representa.
+                    Desactívalo si el alumno es adulto y se matricula por cuenta propia.
+                  </p>
+                </div>
+              </label>
+            )}
+
+            {/* Campos del apoderado — al crear cuando está activado */}
+            {!alumno && tieneApoderado && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Apoderado
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tutorNombre">Nombre *</Label>
+                    <Input id="tutorNombre" name="tutorNombre" placeholder="María" />
+                    {e.tutorNombre && (
+                      <p className="text-xs text-destructive">{e.tutorNombre[0]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tutorApellido">Apellido *</Label>
+                    <Input id="tutorApellido" name="tutorApellido" placeholder="Pérez" />
+                    {e.tutorApellido && (
+                      <p className="text-xs text-destructive">{e.tutorApellido[0]}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tutorCelular">Celular *</Label>
+                    <Input id="tutorCelular" name="tutorCelular" placeholder="987654321" />
+                    {e.tutorCelular && (
+                      <p className="text-xs text-destructive">{e.tutorCelular[0]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tutorCelularAdicional">Celular adicional</Label>
+                    <Input
+                      id="tutorCelularAdicional"
+                      name="tutorCelularAdicional"
+                      placeholder="987654321"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="tutorRelacion">Relación *</Label>
+                  <Input
+                    id="tutorRelacion"
+                    name="tutorRelacion"
+                    placeholder="Madre, Padre, Tutor legal..."
+                  />
+                  {e.tutorRelacion && (
+                    <p className="text-xs text-destructive">{e.tutorRelacion[0]}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Al editar: mostrar tutor actual si existe (solo lectura) */}
+            {alumno && alumno.tutor && (
+              <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-3 space-y-0.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+                  Apoderado registrado
+                </p>
+                <p className="text-sm font-medium text-zinc-800">
+                  {alumno.tutor.apellido}, {alumno.tutor.nombre}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {alumno.tutor.relacion} · {alumno.tutor.celular}
+                </p>
+              </div>
+            )}
+
+            {alumno && !alumno.tutor && (
+              <p className="text-xs text-zinc-400 italic">
+                Sin apoderado registrado — alumno autónomo.
+              </p>
+            )}
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
