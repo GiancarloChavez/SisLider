@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState } from "react";
+import { useEffect, useActionState, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,13 +30,15 @@ const initialState: DocenteFormState = {};
 export function DocenteDialog({ open, onClose, docente }: Props) {
   const action = docente ? updateDocente.bind(null, docente.id) : createDocente;
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [handled, setHandled] = useState(false);
 
   useEffect(() => {
-    if (state.message === "ok") {
+    if (state.message === "ok" && !handled) {
+      setHandled(true);
       toast.success(docente ? "Docente actualizado" : "Docente creado");
       onClose();
     }
-  }, [state.message, docente, onClose]);
+  }, [state.message, handled, docente, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

@@ -23,18 +23,18 @@ type Props = {
 const initialState: CursoFormState = {};
 
 export function CursoDialog({ open, onClose, curso }: Props) {
-  const action = curso
-    ? updateCurso.bind(null, curso.id)
-    : createCurso;
+  const action = curso ? updateCurso.bind(null, curso.id) : createCurso;
 
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [handled, setHandled] = useState(false);
 
   useEffect(() => {
-    if (state.message === "ok") {
+    if (state.message === "ok" && !handled) {
+      setHandled(true);
       toast.success(curso ? "Curso actualizado" : "Curso creado");
       onClose();
     }
-  }, [state.message, curso, onClose]);
+  }, [state.message, handled, curso, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

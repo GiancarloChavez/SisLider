@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState } from "react";
+import { useEffect, useActionState, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,13 +37,15 @@ const initialState: HorarioFormState = {};
 export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
   const action = horario ? updateHorario.bind(null, horario.id) : createHorario;
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [handled, setHandled] = useState(false);
 
   useEffect(() => {
-    if (state.message === "ok") {
+    if (state.message === "ok" && !handled) {
+      setHandled(true);
       toast.success(horario ? "Horario actualizado" : "Horario creado");
       onClose();
     }
-  }, [state.message, horario, onClose]);
+  }, [state.message, handled, horario, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

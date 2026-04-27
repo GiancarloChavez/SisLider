@@ -23,14 +23,17 @@ type Props = {
 export function CursosTable({ cursos }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<CursoSerialized | null>(null);
+  const [dialogKey, setDialogKey] = useState(0);
 
   function openCreate() {
     setSelected(null);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(curso: CursoSerialized) {
     setSelected(curso);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -120,6 +123,7 @@ export function CursosTable({ cursos }: Props) {
       </div>
 
       <CursoDialog
+        key={dialogKey}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         curso={selected}

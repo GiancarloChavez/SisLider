@@ -38,14 +38,17 @@ const DIA_ABREV: Record<string, string> = {
 export function HorariosTable({ horarios, selectData }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<HorarioSerialized | null>(null);
+  const [dialogKey, setDialogKey] = useState(0);
 
   function openCreate() {
     setSelected(null);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(horario: HorarioSerialized) {
     setSelected(horario);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -159,6 +162,7 @@ export function HorariosTable({ horarios, selectData }: Props) {
       </div>
 
       <HorarioDialog
+        key={dialogKey}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         horario={selected}

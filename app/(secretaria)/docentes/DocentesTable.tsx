@@ -23,14 +23,17 @@ type Props = {
 export function DocentesTable({ docentes }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<DocenteSerialized | null>(null);
+  const [dialogKey, setDialogKey] = useState(0);
 
   function openCreate() {
     setSelected(null);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(docente: DocenteSerialized) {
     setSelected(docente);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -127,6 +130,7 @@ export function DocentesTable({ docentes }: Props) {
       </div>
 
       <DocenteDialog
+        key={dialogKey}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         docente={selected}

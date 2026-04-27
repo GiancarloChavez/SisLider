@@ -23,14 +23,17 @@ type Props = {
 export function AulasTable({ aulas }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<AulaSerialized | null>(null);
+  const [dialogKey, setDialogKey] = useState(0);
 
   function openCreate() {
     setSelected(null);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(aula: AulaSerialized) {
     setSelected(aula);
+    setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
 
@@ -119,6 +122,7 @@ export function AulasTable({ aulas }: Props) {
       </div>
 
       <AulaDialog
+        key={dialogKey}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         aula={selected}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState } from "react";
+import { useEffect, useActionState, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,13 +30,15 @@ const initialState: AulaFormState = {};
 export function AulaDialog({ open, onClose, aula }: Props) {
   const action = aula ? updateAula.bind(null, aula.id) : createAula;
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [handled, setHandled] = useState(false);
 
   useEffect(() => {
-    if (state.message === "ok") {
+    if (state.message === "ok" && !handled) {
+      setHandled(true);
       toast.success(aula ? "Aula actualizada" : "Aula creada");
       onClose();
     }
-  }, [state.message, aula, onClose]);
+  }, [state.message, handled, aula, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
