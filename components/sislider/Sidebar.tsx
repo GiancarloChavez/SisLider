@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { logout } from "@/lib/actions/auth";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -155,23 +155,25 @@ export function Sidebar({ isPinned, onTogglePin }: SidebarProps) {
 
       {/* Sign out */}
       <div className="shrink-0 border-t border-zinc-800 px-2 py-3">
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
-            "text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors duration-150",
-          )}
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          <span
+        <form action={logout}>
+          <button
+            type="submit"
             className={cn(
-              "whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-150",
-              isExpanded ? "opacity-100 max-w-[160px] delay-75" : "opacity-0 max-w-0 delay-0",
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
+              "text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors duration-150",
             )}
           >
-            Cerrar sesión
-          </span>
-        </button>
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span
+              className={cn(
+                "whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-150",
+                isExpanded ? "opacity-100 max-w-[160px] delay-75" : "opacity-0 max-w-0 delay-0",
+              )}
+            >
+              Cerrar sesión
+            </span>
+          </button>
+        </form>
       </div>
     </aside>
   );
