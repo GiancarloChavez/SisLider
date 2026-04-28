@@ -1,140 +1,266 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { Users, ClipboardList, AlertCircle, DollarSign } from "lucide-react";
+import {
+  Users, ClipboardList, AlertCircle, DollarSign,
+  CalendarDays, UserCheck,
+} from "lucide-react";
+import { DashboardCharts } from "./DashboardCharts";
+import type {
+  IngresosMesData, EstadoPagoData, MatriculasCursoData, MesPendienteData,
+} from "./DashboardCharts";
+import { ClasesCalendar } from "../clases/ClasesCalendar";
+import { getHorariosCalendario } from "@/lib/actions/clases";
+
+// ─── Data fetching ────────────────────────────────────────────────────────────
+
+const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
 const getDashboardData = unstable_cache(
   async () => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [alumnosActivos, matriculasActivas, mesesPendientes, ingresosMes] =
-      await Promise.all([
-        prisma.alumno.count({ where: { habilitado: true } }),
-        prisma.matricula.count({ where: { estado: "activa" } }),
-        prisma.mesPago.findMany({
-          where: { estado: { in: ["pendiente", "parcial"] } },
-          include: { matricula: { include: { alumno: true } } },
-          orderBy: [{ anio: "asc" }, { mes: "asc" }],
-          take: 10,
-        }),
-        prisma.abono.aggregate({
-          _sum: { monto: true },
-          where: { createdAt: { gte: startOfMonth } },
-        }),
-      ]);
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
 
-    return {
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+
+    const [
       alumnosActivos,
       matriculasActivas,
-      mesesPendientes: mesesPendientes.map((m) => ({
-        id: m.id,
-        anio: m.anio,
-        mes: m.mes,
-        estado: m.estado,
-        montoTotal: Number(m.montoTotal),
-        montoPagado: Number(m.montoPagado),
-        alumno: {
-          nombre: m.matricula.alumno.nombre,
-          apellido: m.matricula.alumno.apellido,
+      totalPendientesCount,
+      docentes,
+      cursosActivos,
+      asistenciasHoy,
+      ingresosMes,
+      mesesPendientes,
+      abonosHistorial,
+      estadosPagoRaw,
+      horariosActivos,
+    ] = await Promise.all([
+      prisma.alumno.count({ where: { habilitado: true } }),
+      prisma.matricula.count({ where: { estado: "activa" } }),
+      prisma.mesPago.count({ where: { estado: { in: ["pendiente", "parcial"] } } }),
+      prisma.docente.count(),
+      prisma.horario.count({ where: { activo: true } }),
+      prisma.asistencia.count({
+        where: { fecha: { gte: todayStart, lte: todayEnd }, estado: "presente" },
+      }),
+      prisma.abono.aggregate({
+        _sum: { monto: true },
+        where: { createdAt: { gte: startOfMonth } },
+      }),
+      prisma.mesPago.findMany({
+        where: { estado: { in: ["pendiente", "parcial"] } },
+        include: { matricula: { include: { alumno: true } } },
+        orderBy: [{ anio: "asc" }, { mes: "asc" }],
+        take: 10,
+      }),
+      prisma.abono.findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { monto: true, createdAt: true },
+      }),
+      prisma.mesPago.groupBy({ by: ["estado"], _count: { id: true } }),
+      prisma.horario.findMany({
+        where: { activo: true },
+        include: {
+          curso: { select: { id: true, nombre: true } },
+          _count: { select: { matriculas: { where: { estado: "activa" } } } },
         },
-      })),
-      ingresos: Number(ingresosMes._sum.monto ?? 0),
+      }),
+    ]);
+
+    // Build last-6-months ingresos
+    const byMonth: Record<string, number> = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - i);
+      byMonth[`${d.getFullYear()}-${d.getMonth()}`] = 0;
+    }
+    for (const a of abonosHistorial) {
+      const d = new Date(a.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (key in byMonth) byMonth[key] += Number(a.monto);
+    }
+    const ingresosPorMes: IngresosMesData[] = Object.entries(byMonth).map(([key, total]) => {
+      const month = Number(key.split("-")[1]);
+      return { mes: MESES_ES[month], total: Math.round(total * 100) / 100 };
+    });
+
+    // Estado de pagos distribution
+    const ESTADO_LABELS: Record<string, string> = {
+      pagado: "Al día", parcial: "Parcial", pendiente: "Pendiente",
+    };
+    const estadosPago: EstadoPagoData[] = estadosPagoRaw.map((e) => ({
+      estado: e.estado,
+      label: ESTADO_LABELS[e.estado] ?? e.estado,
+      count: e._count.id,
+    }));
+
+    // Matrículas por curso
+    const byCurso: Record<string, { nombre: string; matriculas: number }> = {};
+    for (const h of horariosActivos) {
+      const { id, nombre } = h.curso;
+      if (!byCurso[id]) byCurso[id] = { nombre, matriculas: 0 };
+      byCurso[id].matriculas += h._count.matriculas;
+    }
+    const matriculasPorCurso: MatriculasCursoData[] = Object.values(byCurso)
+      .sort((a, b) => b.matriculas - a.matriculas)
+      .slice(0, 7);
+
+    const pendientesSerializados: MesPendienteData[] = mesesPendientes.map((m) => ({
+      id: m.id,
+      anio: m.anio,
+      mes: m.mes,
+      estado: m.estado,
+      montoTotal: Number(m.montoTotal),
+      montoPagado: Number(m.montoPagado),
+      alumno: { nombre: m.matricula.alumno.nombre, apellido: m.matricula.alumno.apellido },
+    }));
+
+    return {
+      kpis: {
+        alumnosActivos,
+        matriculasActivas,
+        totalPendientesCount,
+        ingresos: Number(ingresosMes._sum.monto ?? 0),
+        docentes,
+        cursosActivos,
+        asistenciasHoy,
+      },
+      ingresosPorMes,
+      estadosPago,
+      matriculasPorCurso,
+      mesesPendientes: pendientesSerializados,
     };
   },
   ["dashboard"],
-  { tags: ["dashboard"], revalidate: 60 }
+  { tags: ["dashboard", "matriculas", "pagos", "alumnos"], revalidate: 60 },
 );
 
-const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
-  const { alumnosActivos, matriculasActivas, mesesPendientes, ingresos } =
-    await getDashboardData();
+  const [data, horarios] = await Promise.all([
+    getDashboardData(),
+    getHorariosCalendario(),
+  ]);
+
+  const { kpis, ingresosPorMes, estadosPago, matriculasPorCurso, mesesPendientes } = data;
 
   const totalPendiente = mesesPendientes.reduce(
-    (sum, m) => sum + (m.montoTotal - m.montoPagado),
-    0
+    (s, m) => s + (m.montoTotal - m.montoPagado),
+    0,
   );
 
-  const kpis = [
-    { label: "Alumnos activos",    value: alumnosActivos,              sub: null,                                   icon: Users,         color: "bg-blue-50 text-blue-600" },
-    { label: "Matrículas activas", value: matriculasActivas,           sub: null,                                   icon: ClipboardList, color: "bg-indigo-50 text-indigo-600" },
-    { label: "Pagos pendientes",   value: mesesPendientes.length,      sub: `S/${totalPendiente.toFixed(2)} por cobrar`, icon: AlertCircle,  color: "bg-amber-50 text-amber-600" },
-    { label: "Ingresos del mes",   value: `S/${ingresos.toFixed(2)}`,  sub: null,                                   icon: DollarSign,    color: "bg-emerald-50 text-emerald-600" },
-  ];
+  const kpiCards = [
+    {
+      label: "Alumnos activos",
+      value: kpis.alumnosActivos,
+      sub: null,
+      icon: Users,
+      iconBg: "bg-blue-50",
+      iconColor: "text-blue-600",
+      valueBg: "",
+    },
+    {
+      label: "Matrículas activas",
+      value: kpis.matriculasActivas,
+      sub: null,
+      icon: ClipboardList,
+      iconBg: "bg-indigo-50",
+      iconColor: "text-indigo-600",
+    },
+    {
+      label: "Ingresos del mes",
+      value: `S/${kpis.ingresos.toFixed(2)}`,
+      sub: null,
+      icon: DollarSign,
+      iconBg: "bg-emerald-50",
+      iconColor: "text-emerald-600",
+    },
+    {
+      label: "Por cobrar",
+      value: kpis.totalPendientesCount,
+      sub: `S/${totalPendiente.toFixed(2)} pendiente`,
+      icon: AlertCircle,
+      iconBg: "bg-amber-50",
+      iconColor: "text-amber-600",
+    },
+    {
+      label: "Horarios activos",
+      value: kpis.cursosActivos,
+      sub: null,
+      icon: CalendarDays,
+      iconBg: "bg-violet-50",
+      iconColor: "text-violet-600",
+    },
+    {
+      label: "Docentes",
+      value: kpis.docentes,
+      sub: null,
+      icon: UserCheck,
+      iconBg: "bg-rose-50",
+      iconColor: "text-rose-600",
+    },
+  ] as const;
 
   return (
     <div className="space-y-6">
+
+      {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
-        <p className="text-sm text-zinc-500">Resumen del sistema</p>
+        <p className="text-sm text-zinc-500 mt-0.5">
+          Resumen general — {new Date().toLocaleDateString("es-PE", {
+            weekday: "long", day: "numeric", month: "long", year: "numeric",
+          })}
+        </p>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map(({ label, value, sub, icon: Icon, color }) => (
-          <div key={label} className="rounded-xl bg-white border border-zinc-200 p-5 shadow-sm">
+      {/* ── KPIs ─────────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+        {kpiCards.map(({ label, value, sub, icon: Icon, iconBg, iconColor }) => (
+          <div
+            key={label}
+            className="rounded-xl bg-white border border-zinc-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
+          >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-zinc-500">{label}</span>
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}>
-                <Icon className="h-4 w-4" />
+              <span className="text-xs font-medium text-zinc-500 leading-tight">{label}</span>
+              <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
+                <Icon className="h-3.5 w-3.5" />
               </span>
             </div>
-            <p className="text-3xl font-bold text-zinc-900">{value}</p>
-            {sub && <p className="mt-1 text-xs text-zinc-400">{sub}</p>}
+            <p className="text-2xl font-bold text-zinc-900 tabular-nums">{value}</p>
+            {sub && <p className="mt-1 text-[11px] text-zinc-400">{sub}</p>}
           </div>
         ))}
       </div>
 
-      {/* Tabla pagos pendientes */}
+      {/* ── Charts ───────────────────────────────────────────────────────────── */}
+      <DashboardCharts
+        ingresosPorMes={ingresosPorMes}
+        estadosPago={estadosPago}
+        matriculasPorCurso={matriculasPorCurso}
+        mesesPendientes={mesesPendientes}
+      />
+
+      {/* ── Weekly schedule calendar ──────────────────────────────────────── */}
       <div className="rounded-xl bg-white border border-zinc-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-zinc-100">
-          <h2 className="text-sm font-semibold text-zinc-900">Pagos pendientes</h2>
+          <p className="text-sm font-semibold text-zinc-900">Horario semanal</p>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            {horarios.length === 0
+              ? "No hay horarios activos"
+              : `${horarios.length} horario${horarios.length !== 1 ? "s" : ""} activo${horarios.length !== 1 ? "s" : ""} — navega con las flechas`}
+          </p>
         </div>
-
-        {mesesPendientes.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-zinc-400">Sin pagos pendientes</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide">
-                <th className="px-5 py-3">Alumno</th>
-                <th className="px-5 py-3">Período</th>
-                <th className="px-5 py-3">Total</th>
-                <th className="px-5 py-3">Pagado</th>
-                <th className="px-5 py-3">Debe</th>
-                <th className="px-5 py-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {mesesPendientes.map((mes) => {
-                const debe = mes.montoTotal - mes.montoPagado;
-                return (
-                  <tr key={mes.id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="px-5 py-3 font-medium text-zinc-900">
-                      {mes.alumno.apellido}, {mes.alumno.nombre}
-                    </td>
-                    <td className="px-5 py-3 text-zinc-500">
-                      {MESES[mes.mes - 1]} {mes.anio}
-                    </td>
-                    <td className="px-5 py-3 font-mono text-zinc-700">S/{mes.montoTotal.toFixed(2)}</td>
-                    <td className="px-5 py-3 font-mono text-zinc-700">S/{mes.montoPagado.toFixed(2)}</td>
-                    <td className="px-5 py-3 font-mono font-semibold text-red-600">S/{debe.toFixed(2)}</td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        mes.estado === "parcial"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-red-100 text-red-700"
-                      }`}>
-                        {mes.estado === "parcial" ? "Parcial" : "Pendiente"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+        <div className="p-4">
+          <ClasesCalendar horarios={horarios} title="" subtitle="" />
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,9 @@ export type MatriculaFormState = {
 // ─── Search alumnos ───────────────────────────────────────────────────────────
 
 export async function buscarAlumnos(query: string): Promise<AlumnoSearchResult[]> {
+  const session = await auth();
+  if (!session?.user) return [];
+
   const q = query.trim();
   if (q.length < 2) return [];
 
@@ -158,20 +162,14 @@ export async function createMatricula(
 
   const { idAlumno, idHorario, idDescuento, dias } = parsed.data;
 
+  // Validate horario exists and fetch curso price
   const horario = await prisma.horario.findUnique({
     where: { id: idHorario },
-    include: {
-      curso: true,
-      _count: { select: { matriculas: { where: { estado: "activa" } } } },
-    },
+    include: { curso: true },
   });
-
   if (!horario) return { errors: { idHorario: ["Horario no encontrado"] } };
 
-  if (horario._count.matriculas >= horario.cupoMaximo) {
-    return { errors: { idHorario: ["El horario está lleno, no tiene cupo disponible"] } };
-  }
-
+  // Validate existing enrollment
   const existing = await prisma.matricula.findUnique({
     where: { idAlumno_idHorario: { idAlumno, idHorario } },
   });
@@ -194,6 +192,14 @@ export async function createMatricula(
   const ultimoDiaMes = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   await prisma.$transaction(async (tx) => {
+    // Check cupo inside transaction to avoid race conditions
+    const cupoOcupado = await tx.matricula.count({
+      where: { idHorario, estado: "activa" },
+    });
+    if (cupoOcupado >= horario.cupoMaximo) {
+      throw new Error("CUPO_LLENO");
+    }
+
     const matricula = await tx.matricula.create({
       data: {
         idAlumno,
@@ -217,6 +223,9 @@ export async function createMatricula(
     });
 
     await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: true } });
+  }).catch((e: Error) => {
+    if (e.message === "CUPO_LLENO") return "CUPO_LLENO";
+    throw e;
   });
 
   revalidateTag("matriculas");
@@ -229,7 +238,33 @@ export async function createMatricula(
 
 export async function toggleMatriculaEstado(id: string, estado: string) {
   const nuevo = estado === "activa" ? "inactiva" : "activa";
-  await prisma.matricula.update({ where: { id }, data: { estado: nuevo } });
+
+  const matricula = await prisma.matricula.findUnique({
+    where: { id },
+    select: { idAlumno: true },
+  });
+  if (!matricula) return;
+
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.matricula.update({ where: { id }, data: { estado: nuevo } });
+
+    const pendientes = await tx.mesPago.count({
+      where: {
+        matricula: { idAlumno: matricula.idAlumno, estado: "activa" },
+        anio: now.getFullYear(),
+        mes: now.getMonth() + 1,
+        estado: { in: ["pendiente", "parcial"] },
+      },
+    });
+    await tx.alumno.update({
+      where: { id: matricula.idAlumno },
+      data: { habilitado: pendientes === 0 },
+    });
+  });
+
   revalidateTag("matriculas");
+  revalidateTag("alumnos");
   revalidateTag("dashboard");
 }

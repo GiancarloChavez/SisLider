@@ -50,18 +50,6 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
         <form action={formAction} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label htmlFor="apellido">Apellido *</Label>
-              <Input
-                id="apellido"
-                name="apellido"
-                defaultValue={docente?.apellido ?? ""}
-                placeholder="García"
-              />
-              {state.errors?.apellido && (
-                <p className="text-xs text-destructive">{state.errors.apellido[0]}</p>
-              )}
-            </div>
-            <div className="space-y-1">
               <Label htmlFor="nombre">Nombre *</Label>
               <Input
                 id="nombre"
@@ -71,6 +59,18 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
               />
               {state.errors?.nombre && (
                 <p className="text-xs text-destructive">{state.errors.nombre[0]}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="apellido">Apellido *</Label>
+              <Input
+                id="apellido"
+                name="apellido"
+                defaultValue={docente?.apellido ?? ""}
+                placeholder="García"
+              />
+              {state.errors?.apellido && (
+                <p className="text-xs text-destructive">{state.errors.apellido[0]}</p>
               )}
             </div>
           </div>

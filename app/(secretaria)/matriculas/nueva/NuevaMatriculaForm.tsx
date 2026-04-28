@@ -42,6 +42,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   const [query, setQuery] = useState("");
   const [resultados, setResultados] = useState<AlumnoSearchResult[]>([]);
   const [searching, startSearch] = useTransition();
+  const [noResults, setNoResults] = useState(false);
 
   // Selections
   const [alumno, setAlumno] = useState<AlumnoSearchResult | null>(null);
@@ -56,12 +57,24 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
     }
   }, [state.message, router]);
 
-  function handleSearch() {
-    startSearch(async () => {
-      const res = await buscarAlumnos(query);
-      setResultados(res);
-    });
-  }
+  // Live search — debounced 300 ms
+  useEffect(() => {
+    if (alumno) return;
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setResultados([]);
+      setNoResults(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      startSearch(async () => {
+        const res = await buscarAlumnos(trimmed);
+        setResultados(res);
+        setNoResults(res.length === 0);
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, alumno]);
 
   function selectAlumno(a: AlumnoSearchResult) {
     setAlumno(a);
@@ -78,6 +91,9 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
     setHorario(null);
     setDias([]);
     setDescuentoId("");
+    setResultados([]);
+    setNoResults(false);
+    setQuery("");
   }
 
   function selectHorario(h: HorarioConCupo) {
@@ -136,23 +152,15 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
               <Input
                 placeholder="Buscar por nombre o DNI..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); handleSearch(); }
-                }}
+                onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                className="pl-9"
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSearch}
-                disabled={searching || query.trim().length < 2}
-              >
-                <Search className="h-4 w-4" />
-              </Button>
             </div>
 
             {e.idAlumno && (
@@ -184,7 +192,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
               </ul>
             )}
 
-            {!searching && resultados.length === 0 && query.trim().length >= 2 && (
+            {noResults && !searching && (
               <p className="text-xs text-zinc-400 px-1">
                 Sin resultados. Verifica el nombre o registra el alumno primero.
               </p>

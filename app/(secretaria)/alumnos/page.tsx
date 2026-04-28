@@ -42,7 +42,11 @@ const getAlumnos = unstable_cache(
   { tags: ["alumnos"] }
 );
 
-export default async function AlumnosPage() {
-  const alumnos = await getAlumnos();
-  return <AlumnosTable alumnos={alumnos} />;
+export default async function AlumnosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ nuevo?: string }>;
+}) {
+  const [alumnos, params] = await Promise.all([getAlumnos(), searchParams]);
+  return <AlumnosTable alumnos={alumnos} autoOpen={params.nuevo === "true"} />;
 }

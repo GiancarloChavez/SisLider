@@ -39,3 +39,9 @@ next-env.d.ts
 
 # prisma
 prisma/generated/
+
+# tools / editor
+.claude/
+.superpowers/
+.vscode/
+.mcp.json
