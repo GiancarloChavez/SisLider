@@ -19,6 +19,7 @@ import {
   DoorOpen,
   Pin,
   PinOff,
+  Tag,
 } from "lucide-react";
 
 const navGroups = [
@@ -37,7 +38,10 @@ const navGroups = [
   },
   {
     label: "Finanzas",
-    items: [{ href: "/pagos", label: "Pagos", icon: CreditCard }],
+    items: [
+      { href: "/pagos", label: "Pagos", icon: CreditCard },
+      { href: "/descuentos", label: "Descuentos", icon: Tag },
+    ],
   },
 ];
 
