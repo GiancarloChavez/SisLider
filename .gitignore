@@ -45,3 +45,5 @@ prisma/generated/
 .superpowers/
 .vscode/
 .mcp.json
+
+.vercel
