@@ -9,6 +9,7 @@ const getMatriculas = unstable_cache(
       orderBy: [{ estado: "asc" }, { createdAt: "desc" }],
       include: {
         alumno: true,
+        dias: true,
         horario: {
           include: { curso: true, docente: true, aula: true, dias: true },
         },
@@ -21,6 +22,7 @@ const getMatriculas = unstable_cache(
       precioFinalMensual: Number(m.precioFinalMensual),
       fechaInicio: m.fechaInicio.toISOString(),
       estado: m.estado,
+      diasMatricula: m.dias.map((d) => d.dia),
       alumno: {
         id: m.alumno.id,
         nombre: m.alumno.nombre,

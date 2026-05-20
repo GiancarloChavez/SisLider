@@ -41,6 +41,7 @@ export type MatriculaRow = {
   id: string;
   estado: string;
   precioFinalMensual: number;
+  diasMatricula: string[];
   horario: {
     curso: { nombre: string; nivel: string | null };
     dias: string[];
@@ -117,6 +118,7 @@ export async function getAlumnoPagos(alumnoId: string): Promise<AlumnoPagoDetall
       matriculas: {
         orderBy: [{ estado: "asc" }, { fechaInicio: "desc" }],
         include: {
+          dias: true,
           descuento: { select: { nombre: true } },
           horario: {
             include: { curso: true, dias: true },
@@ -155,6 +157,7 @@ export async function getAlumnoPagos(alumnoId: string): Promise<AlumnoPagoDetall
       id: m.id,
       estado: m.estado,
       precioFinalMensual: Number(m.precioFinalMensual),
+      diasMatricula: m.dias.map((d) => d.dia),
       horario: {
         curso: { nombre: m.horario.curso.nombre, nivel: m.horario.curso.nivel },
         dias: m.horario.dias.map((d) => d.dia),
@@ -249,21 +252,14 @@ export async function registrarAbono(
       data: { montoPagado: nuevoMontoPagado, estado: nuevoEstado },
     });
 
-    // Actualiza habilitado si es el mes actual
-    const now = new Date();
-    if (mesPago.anio === now.getFullYear() && mesPago.mes === now.getMonth() + 1) {
-      const otrosPendientes = await tx.mesPago.count({
-        where: {
-          NOT: { id: idMesPago },
-          matricula: { idAlumno, estado: "activa" },
-          anio: now.getFullYear(),
-          mes: now.getMonth() + 1,
-          estado: { in: ["pendiente", "parcial"] },
-        },
-      });
-      const habilitado = otrosPendientes === 0 && nuevoEstado === "pagado";
-      await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado } });
-    }
+    // Recalcular habilitado sobre todos los meses de todas las matrículas activas
+    const pendientesTotal = await tx.mesPago.count({
+      where: {
+        matricula: { idAlumno, estado: "activa" },
+        estado: { in: ["pendiente", "parcial"] },
+      },
+    });
+    await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: pendientesTotal === 0 } });
   });
 
   revalidateTag("pagos");
@@ -318,27 +314,22 @@ export async function anularMesPago(idMesPago: string): Promise<{ error?: string
   if (mesPago.estado === "pagado") return { error: "No se puede eliminar un mes ya pagado" };
 
   const idAlumno = mesPago.matricula.idAlumno;
-  const now = new Date();
 
   await prisma.$transaction(async (tx) => {
     await tx.abono.deleteMany({ where: { idMesPago } });
     await tx.mesPago.delete({ where: { id: idMesPago } });
 
-    // Recalculate habilitado after deletion
-    if (mesPago.anio === now.getFullYear() && mesPago.mes === now.getMonth() + 1) {
-      const pendientes = await tx.mesPago.count({
-        where: {
-          matricula: { idAlumno, estado: "activa" },
-          anio: now.getFullYear(),
-          mes: now.getMonth() + 1,
-          estado: { in: ["pendiente", "parcial"] },
-        },
-      });
-      await tx.alumno.update({
-        where: { id: idAlumno },
-        data: { habilitado: pendientes === 0 },
-      });
-    }
+    // Recalcular habilitado sobre todos los meses restantes
+    const pendientesTotal = await tx.mesPago.count({
+      where: {
+        matricula: { idAlumno, estado: "activa" },
+        estado: { in: ["pendiente", "parcial"] },
+      },
+    });
+    await tx.alumno.update({
+      where: { id: idAlumno },
+      data: { habilitado: pendientesTotal === 0 },
+    });
   });
 
   revalidateTag("pagos");

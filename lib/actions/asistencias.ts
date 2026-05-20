@@ -4,6 +4,13 @@ import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
+const DIAS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+function diaNombre(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return DIAS_ES[new Date(y, m - 1, d).getDay()];
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type HorarioAsistenciaOption = {
@@ -51,9 +58,15 @@ export async function getEstudiantesDelHorario(
   fecha: string
 ): Promise<EstudianteAsistencia[]> {
   const fechaDate = new Date(fecha + "T00:00:00.000Z");
+  const dia = diaNombre(fecha);
 
   const matriculas = await prisma.matricula.findMany({
-    where: { idHorario, estado: "activa" },
+    where: {
+      idHorario,
+      estado: "activa",
+      alumno: { habilitado: true },
+      dias: { some: { dia } },
+    },
     include: {
       alumno: { select: { id: true, nombre: true, apellido: true } },
       asistencias: {

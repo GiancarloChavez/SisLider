@@ -39,6 +39,7 @@ export type MatriculaSerialized = {
   precioFinalMensual: number;
   fechaInicio: string;
   estado: string;
+  diasMatricula: string[];
   alumno: { id: string; nombre: string; apellido: string; dni: string | null };
   horario: {
     curso: { nombre: string; nivel: string | null };
@@ -191,13 +192,13 @@ export async function createMatricula(
   const now = new Date();
   const ultimoDiaMes = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  await prisma.$transaction(async (tx) => {
+  const txResult = await prisma.$transaction(async (tx) => {
     // Check cupo inside transaction to avoid race conditions
     const cupoOcupado = await tx.matricula.count({
       where: { idHorario, estado: "activa" },
     });
     if (cupoOcupado >= horario.cupoMaximo) {
-      throw new Error("CUPO_LLENO");
+      return "CUPO_LLENO" as const;
     }
 
     const matricula = await tx.matricula.create({
@@ -223,10 +224,12 @@ export async function createMatricula(
     });
 
     await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: true } });
-  }).catch((e: Error) => {
-    if (e.message === "CUPO_LLENO") return "CUPO_LLENO";
-    throw e;
+    return "ok" as const;
   });
+
+  if (txResult === "CUPO_LLENO") {
+    return { errors: { idHorario: ["El horario no tiene cupo disponible"] } };
+  }
 
   revalidateTag("matriculas");
   revalidateTag("alumnos");
@@ -245,16 +248,12 @@ export async function toggleMatriculaEstado(id: string, estado: string) {
   });
   if (!matricula) return;
 
-  const now = new Date();
-
   await prisma.$transaction(async (tx) => {
     await tx.matricula.update({ where: { id }, data: { estado: nuevo } });
 
     const pendientes = await tx.mesPago.count({
       where: {
         matricula: { idAlumno: matricula.idAlumno, estado: "activa" },
-        anio: now.getFullYear(),
-        mes: now.getMonth() + 1,
         estado: { in: ["pendiente", "parcial"] },
       },
     });

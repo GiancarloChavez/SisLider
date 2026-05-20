@@ -10,7 +10,6 @@ import {
   Users,
   ClipboardList,
   CheckSquare,
-  BookOpen,
   GraduationCap,
   CreditCard,
   LogOut,
@@ -20,6 +19,7 @@ import {
   Pin,
   PinOff,
   Tag,
+  School,
 } from "lucide-react";
 
 const navGroups = [
@@ -32,6 +32,7 @@ const navGroups = [
       { href: "/cursos", label: "Cursos", icon: GraduationCap },
       { href: "/aulas", label: "Aulas", icon: DoorOpen },
       { href: "/horarios", label: "Horarios", icon: CalendarDays },
+      { href: "/clases", label: "Clases", icon: School },
       { href: "/matriculas", label: "Matrículas", icon: ClipboardList },
       { href: "/asistencias", label: "Asistencias", icon: CheckSquare },
     ],

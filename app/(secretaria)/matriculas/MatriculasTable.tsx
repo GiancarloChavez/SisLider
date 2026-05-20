@@ -146,7 +146,7 @@ export function MatriculasTable({ matriculas }: Props) {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1 mb-0.5">
-                      {[...m.horario.dias]
+                      {[...m.diasMatricula]
                         .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))
                         .map((d) => (
                           <span

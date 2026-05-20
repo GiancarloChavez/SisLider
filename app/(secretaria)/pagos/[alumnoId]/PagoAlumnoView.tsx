@@ -389,7 +389,7 @@ function MatriculaCard({
             </span>
           </div>
           <div className="flex flex-wrap gap-1 mt-1.5 items-center">
-            {[...horario.dias]
+            {[...matricula.diasMatricula]
               .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))
               .map((d) => (
                 <span key={d} className="inline-flex rounded border bg-white border-zinc-200 px-1.5 py-0 text-[11px] font-medium text-zinc-600">
