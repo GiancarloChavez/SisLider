@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HorarioCalendario } from "@/lib/actions/clases";
@@ -11,20 +11,20 @@ import type { HorarioCalendario } from "@/lib/actions/clases";
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] as const;
 const HOUR_START = 7;
-const HOUR_END = 21;
+const HOUR_END = 23;
 const PX_PER_HOUR = 72;
 const TOTAL_HEIGHT = (HOUR_END - HOUR_START) * PX_PER_HOUR;
 const TIME_COL_W = 56; // px
 
 const COURSE_COLORS = [
-  { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-900",   accent: "bg-blue-400",   dot: "bg-blue-400"   },
-  { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-900", accent: "bg-violet-400", dot: "bg-violet-400" },
-  { bg: "bg-emerald-50",border: "border-emerald-200",text: "text-emerald-900",accent: "bg-emerald-400",dot: "bg-emerald-400"},
-  { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-900", accent: "bg-orange-400", dot: "bg-orange-400" },
-  { bg: "bg-pink-50",   border: "border-pink-200",   text: "text-pink-900",   accent: "bg-pink-400",   dot: "bg-pink-400"   },
-  { bg: "bg-teal-50",   border: "border-teal-200",   text: "text-teal-900",   accent: "bg-teal-400",   dot: "bg-teal-400"   },
-  { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-900", accent: "bg-indigo-400", dot: "bg-indigo-400" },
-  { bg: "bg-rose-50",   border: "border-rose-200",   text: "text-rose-900",   accent: "bg-rose-400",   dot: "bg-rose-400"   },
+  { bg: "bg-blue-50",    border: "border-blue-200",    text: "text-blue-900",    accent: "bg-blue-400",    dot: "bg-blue-400"    },
+  { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-900",  accent: "bg-violet-400",  dot: "bg-violet-400"  },
+  { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-900", accent: "bg-emerald-400", dot: "bg-emerald-400" },
+  { bg: "bg-orange-50",  border: "border-orange-200",  text: "text-orange-900",  accent: "bg-orange-400",  dot: "bg-orange-400"  },
+  { bg: "bg-pink-50",    border: "border-pink-200",    text: "text-pink-900",    accent: "bg-pink-400",    dot: "bg-pink-400"    },
+  { bg: "bg-teal-50",    border: "border-teal-200",    text: "text-teal-900",    accent: "bg-teal-400",    dot: "bg-teal-400"    },
+  { bg: "bg-indigo-50",  border: "border-indigo-200",  text: "text-indigo-900",  accent: "bg-indigo-400",  dot: "bg-indigo-400"  },
+  { bg: "bg-rose-50",    border: "border-rose-200",    text: "text-rose-900",    accent: "bg-rose-400",    dot: "bg-rose-400"    },
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,27 +68,83 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
+// ─── Overlap layout ───────────────────────────────────────────────────────────
+
+type EventLayout = {
+  horario: HorarioCalendario;
+  lane: number;
+  numLanes: number;
+};
+
+function computeLayout(horarios: HorarioCalendario[]): EventLayout[] {
+  if (horarios.length === 0) return [];
+
+  const sorted = [...horarios].sort(
+    (a, b) => timeToMinutes(a.horaInicio) - timeToMinutes(b.horaInicio)
+  );
+
+  // Assign each event to the first free lane
+  const laneEnds: number[] = [];
+  const assignments: { horario: HorarioCalendario; lane: number }[] = [];
+
+  for (const h of sorted) {
+    const start = timeToMinutes(h.horaInicio);
+    const end = timeToMinutes(h.horaFin);
+    let lane = laneEnds.findIndex((e) => e <= start);
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(end); }
+    else { laneEnds[lane] = end; }
+    assignments.push({ horario: h, lane });
+  }
+
+  // For each event, count the max lane among events that overlap with it
+  return assignments.map(({ horario, lane }) => {
+    const start = timeToMinutes(horario.horaInicio);
+    const end = timeToMinutes(horario.horaFin);
+    let maxLane = lane;
+    for (const other of assignments) {
+      const oStart = timeToMinutes(other.horario.horaInicio);
+      const oEnd = timeToMinutes(other.horario.horaFin);
+      if (oStart < end && oEnd > start) maxLane = Math.max(maxLane, other.lane);
+    }
+    return { horario, lane, numLanes: maxLane + 1 };
+  });
+}
+
 // ─── Event card ───────────────────────────────────────────────────────────────
 
-function EventCard({ horario, color }: {
+function EventCard({
+  horario, color, lane, numLanes, onClick,
+}: {
   horario: HorarioCalendario;
   color: (typeof COURSE_COLORS)[number];
+  lane: number;
+  numLanes: number;
+  onClick: () => void;
 }) {
   const top = topPx(horario.horaInicio);
   const height = heightPx(horario.horaInicio, horario.horaFin);
   const compact = height < 52;
-  const medium  = height >= 52 && height < 80;
+  const medium = height >= 52 && height < 80;
+
+  const leftPct = (lane / numLanes) * 100;
+  const widthPct = (1 / numLanes) * 100;
 
   return (
     <div
       className={cn(
-        "absolute inset-x-1 rounded-lg border overflow-hidden shadow-sm",
-        "transition-shadow duration-150 hover:shadow-md cursor-default group",
+        "absolute rounded-lg border overflow-hidden shadow-sm",
+        "transition-shadow duration-150 hover:shadow-md cursor-pointer group",
         color.bg, color.border
       )}
-      style={{ top: top + 2, height: height - 4 }}
-      role="article"
-      aria-label={`${horario.curso.nombre}, ${horario.horaInicio}–${horario.horaFin}, ${horario.docente.apellido}`}
+      style={{
+        top: top + 2,
+        height: height - 4,
+        left: `calc(${leftPct}% + 2px)`,
+        width: `calc(${widthPct}% - 4px)`,
+      }}
+      onClick={onClick}
+      role="button"
+      aria-label={`${horario.curso.nombre}, ${horario.horaInicio}–${horario.horaFin}`}
     >
       {/* Left accent stripe */}
       <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-lg", color.accent)} />
@@ -134,6 +190,7 @@ type Props = {
 };
 
 export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) {
+  const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentMinutes, setCurrentMinutes] = useState<number | null>(null);
 
@@ -157,7 +214,6 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
 
   const today = new Date();
 
-  // Header week label
   const fmtShort = (d: Date) =>
     d.toLocaleDateString("es-PE", { day: "numeric", month: "short" });
   const fmtFull = (d: Date) =>
@@ -167,12 +223,10 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
       ? `${weekDates[0].getDate()} – ${fmtFull(weekDates[5])}`
       : `${fmtShort(weekDates[0])} – ${fmtFull(weekDates[5])}`;
 
-  // Unique courses for legend
   const uniqueCourses = Array.from(
     new Map(horarios.map((h) => [h.curso.id, h.curso])).values()
   );
 
-  // Current time indicator
   const showCurrentTime =
     currentMinutes !== null &&
     currentMinutes > HOUR_START * 60 &&
@@ -236,12 +290,12 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
       {/* ── Calendar grid ────────────────────────────────────── */}
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
 
-        {/* Day header row — sticky */}
+        {/* Day header row */}
         <div
           className="grid border-b border-zinc-200 bg-white"
           style={{ gridTemplateColumns: `${TIME_COL_W}px repeat(6, 1fr)` }}
         >
-          <div className="py-3" /> {/* time column placeholder */}
+          <div className="py-3" />
           {DAYS.map((day, i) => {
             const date = weekDates[i];
             const isToday = isSameDay(date, today);
@@ -256,12 +310,10 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
                 <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-400">
                   {day.slice(0, 3)}
                 </p>
-                <p
-                  className={cn(
-                    "text-xl font-bold mt-0.5 leading-none",
-                    isToday ? "text-blue-600" : "text-zinc-800"
-                  )}
-                >
+                <p className={cn(
+                  "text-xl font-bold mt-0.5 leading-none",
+                  isToday ? "text-blue-600" : "text-zinc-800"
+                )}>
                   {date.getDate()}
                 </p>
                 <p className="text-[10px] text-zinc-400 mt-0.5">
@@ -306,6 +358,7 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
                 const date = weekDates[colIdx];
                 const isToday = isSameDay(date, today);
                 const dayHorarios = horarios.filter((h) => h.dias.includes(day));
+                const layouts = computeLayout(dayHorarios);
 
                 return (
                   <div
@@ -346,11 +399,16 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
                     )}
 
                     {/* Events */}
-                    {dayHorarios.map((h) => (
+                    {layouts.map(({ horario: h, lane, numLanes }) => (
                       <EventCard
                         key={h.id}
                         horario={h}
                         color={colorForCourse(h.curso.id)}
+                        lane={lane}
+                        numLanes={numLanes}
+                        onClick={() =>
+                          router.push(`/clases?curso=${h.curso.id}&horario=${h.id}`)
+                        }
                       />
                     ))}
                   </div>

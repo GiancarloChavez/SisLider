@@ -181,13 +181,19 @@ function AlumnosList({
 
 // ─── Main ClasesView ──────────────────────────────────────────────────────────
 
-type Props = { cursos: CursoConHorarios[] };
+type Props = {
+  cursos: CursoConHorarios[];
+  initialCursoId?: string;
+  initialHorarioId?: string;
+};
 
-export function ClasesView({ cursos }: Props) {
+export function ClasesView({ cursos, initialCursoId, initialHorarioId }: Props) {
   const [selectedCursoId, setSelectedCursoId] = useState<string | null>(
-    cursos.length > 0 ? cursos[0].id : null
+    initialCursoId ?? (cursos.length > 0 ? cursos[0].id : null)
   );
-  const [selectedHorarioId, setSelectedHorarioId] = useState<string | null>(null);
+  const [selectedHorarioId, setSelectedHorarioId] = useState<string | null>(
+    initialHorarioId ?? null
+  );
   const [alumnosKey, setAlumnosKey] = useState(0);
 
   const cursoActivo = cursos.find((c) => c.id === selectedCursoId) ?? null;

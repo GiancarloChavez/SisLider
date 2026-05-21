@@ -1,8 +1,10 @@
 import { getCursosConHorarios } from "@/lib/actions/clases";
 import { ClasesView } from "./ClasesView";
 
-export default async function ClasesPage() {
-  const cursos = await getCursosConHorarios();
+type PageProps = { searchParams: Promise<{ curso?: string; horario?: string }> };
+
+export default async function ClasesPage({ searchParams }: PageProps) {
+  const [cursos, params] = await Promise.all([getCursosConHorarios(), searchParams]);
 
   const totalHorarios = cursos.reduce((s, c) => s + c.horarios.length, 0);
   const totalAlumnos = cursos.reduce(
@@ -27,7 +29,11 @@ export default async function ClasesPage() {
           <p className="text-xs mt-1">Crea cursos y horarios desde las secciones correspondientes.</p>
         </div>
       ) : (
-        <ClasesView cursos={cursos} />
+        <ClasesView
+          cursos={cursos}
+          initialCursoId={params.curso}
+          initialHorarioId={params.horario}
+        />
       )}
     </div>
   );

@@ -101,13 +101,8 @@ export async function guardarAsistencias(
   registros: AsistenciaRegistro[]
 ): Promise<GuardarAsistenciaState> {
   const session = await auth();
-  if (!session?.user?.email) return { error: "No autenticado" };
-
-  const usuario = await prisma.usuario.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!usuario) return { error: "Usuario no encontrado" };
+  if (!session?.user?.id) return { error: "No autenticado" };
+  const idUsuario = session.user.id;
 
   if (!registros.length) return { error: "No hay registros para guardar" };
 
@@ -119,7 +114,7 @@ export async function guardarAsistencias(
         where: { idMatricula_fecha: { idMatricula: r.idMatricula, fecha: fechaDate } },
         create: {
           idMatricula: r.idMatricula,
-          idUsuario: usuario.id,
+          idUsuario,
           fecha: fechaDate,
           estado: r.estado,
           observacion: r.observacion ?? null,
