@@ -39,7 +39,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
-      if (token.id) session.user.id = token.id as string;
+      // token.id set on new sign-ins; token.sub always present as fallback
+      session.user.id = (token.id ?? token.sub) as string;
       return session;
     },
   },
