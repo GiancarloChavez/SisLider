@@ -10,8 +10,8 @@ import type { HorarioCalendario } from "@/lib/actions/clases";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] as const;
-const HOUR_START = 7;
-const HOUR_END = 23;
+const HOUR_START = 0;
+const HOUR_END = 24;
 const PX_PER_HOUR = 72;
 const TOTAL_HEIGHT = (HOUR_END - HOUR_START) * PX_PER_HOUR;
 const TIME_COL_W = 56; // px
