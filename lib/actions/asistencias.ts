@@ -101,31 +101,40 @@ export async function guardarAsistencias(
   registros: AsistenciaRegistro[]
 ): Promise<GuardarAsistenciaState> {
   const session = await auth();
-  if (!session?.user?.id) return { error: "No autenticado" };
-  const idUsuario = session.user.id;
+  if (!session?.user?.email) return { error: "No autenticado" };
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+  if (!usuario) return { error: "Usuario no encontrado. Cierra sesión e ingresa nuevamente." };
 
   if (!registros.length) return { error: "No hay registros para guardar" };
 
   const fechaDate = new Date(fecha + "T00:00:00.000Z");
 
-  await prisma.$transaction(
-    registros.map((r) =>
-      prisma.asistencia.upsert({
-        where: { idMatricula_fecha: { idMatricula: r.idMatricula, fecha: fechaDate } },
-        create: {
-          idMatricula: r.idMatricula,
-          idUsuario,
-          fecha: fechaDate,
-          estado: r.estado,
-          observacion: r.observacion ?? null,
-        },
-        update: {
-          estado: r.estado,
-          observacion: r.observacion ?? null,
-        },
-      })
-    )
-  );
+  try {
+    await prisma.$transaction(
+      registros.map((r) =>
+        prisma.asistencia.upsert({
+          where: { idMatricula_fecha: { idMatricula: r.idMatricula, fecha: fechaDate } },
+          create: {
+            idMatricula: r.idMatricula,
+            idUsuario: usuario.id,
+            fecha: fechaDate,
+            estado: r.estado,
+            observacion: r.observacion ?? null,
+          },
+          update: {
+            estado: r.estado,
+            observacion: r.observacion ?? null,
+          },
+        })
+      )
+    );
+  } catch {
+    return { error: "Error al guardar las asistencias. Intenta nuevamente." };
+  }
 
   revalidateTag("asistencias");
   return { message: "ok" };

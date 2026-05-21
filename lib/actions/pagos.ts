@@ -200,8 +200,13 @@ export async function registrarAbono(
   formData: FormData
 ): Promise<AbonoFormState> {
   const session = await auth();
-  if (!session?.user?.id) return { errors: { _: ["No autenticado"] } };
-  const idUsuario = session.user.id;
+  if (!session?.user?.email) return { errors: { _: ["No autenticado"] } };
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+  if (!usuario) return { errors: { _: ["Usuario no encontrado. Cierra sesión e ingresa nuevamente."] } };
 
   const parsed = abonoSchema.safeParse({
     idMesPago: formData.get("idMesPago"),
@@ -231,31 +236,34 @@ export async function registrarAbono(
   const nuevoMontoPagado = Number(mesPago.montoPagado) + monto;
   const nuevoEstado = nuevoMontoPagado >= Number(mesPago.montoTotal) - 0.01 ? "pagado" : "parcial";
 
-  await prisma.$transaction(async (tx) => {
-    await tx.abono.create({
-      data: {
-        idMesPago,
-        idUsuario,
-        monto,
-        metodoPago,
-        observacion: observacion ?? null,
-      },
-    });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.abono.create({
+        data: {
+          idMesPago,
+          idUsuario: usuario.id,
+          monto,
+          metodoPago,
+          observacion: observacion ?? null,
+        },
+      });
 
-    await tx.mesPago.update({
-      where: { id: idMesPago },
-      data: { montoPagado: nuevoMontoPagado, estado: nuevoEstado },
-    });
+      await tx.mesPago.update({
+        where: { id: idMesPago },
+        data: { montoPagado: nuevoMontoPagado, estado: nuevoEstado },
+      });
 
-    // Recalcular habilitado sobre todos los meses de todas las matrículas activas
-    const pendientesTotal = await tx.mesPago.count({
-      where: {
-        matricula: { idAlumno, estado: "activa" },
-        estado: { in: ["pendiente", "parcial"] },
-      },
+      const pendientesTotal = await tx.mesPago.count({
+        where: {
+          matricula: { idAlumno, estado: "activa" },
+          estado: { in: ["pendiente", "parcial"] },
+        },
+      });
+      await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: pendientesTotal === 0 } });
     });
-    await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: pendientesTotal === 0 } });
-  });
+  } catch {
+    return { errors: { _: ["Error al registrar el abono. Intenta nuevamente."] } };
+  }
 
   revalidateTag("pagos");
   revalidateTag("alumnos");
