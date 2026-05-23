@@ -5,7 +5,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle, XCircle, Clock, FileText, Save, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import {
+  CheckCircle, XCircle, Clock, FileText, Save, ChevronLeft, ChevronRight,
+  Loader2, History,
+} from "lucide-react";
 import {
   getEstudiantesDelHorario,
   guardarAsistencias,
@@ -60,6 +63,8 @@ export function AsistenciasView({ horarios }: Props) {
   const [estadoMap, setEstadoMap] = useState<Record<string, EstadoValue>>({});
   const [loadingEstudiantes, setLoadingEstudiantes] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const isReadOnly = fecha !== todayISO();
 
   // Filter horarios that meet on the selected day
   const horariosDia = useMemo(() => {
@@ -117,9 +122,16 @@ export function AsistenciasView({ horarios }: Props) {
     setEstadoMap(next);
   }
 
+  // Editable counts (from estadoMap)
   const presentes = Object.values(estadoMap).filter((v) => v === "presente").length;
   const ausentes  = Object.values(estadoMap).filter((v) => v === "ausente").length;
   const tardes    = Object.values(estadoMap).filter((v) => v === "tarde").length;
+
+  // Read-only counts (from actual saved asistencias)
+  const rPresentes   = estudiantes.filter((e) => e.asistencia?.estado === "presente").length;
+  const rTardes      = estudiantes.filter((e) => e.asistencia?.estado === "tarde").length;
+  const rAusentes    = estudiantes.filter((e) => e.asistencia?.estado === "ausente").length;
+  const rSinRegistro = estudiantes.filter((e) => !e.asistencia).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,32 +142,47 @@ export function AsistenciasView({ horarios }: Props) {
           <p className="text-sm text-zinc-500 capitalize">{formatDateLabel(fecha)}</p>
         </div>
 
-        {/* Date navigator */}
-        <div className="flex items-center rounded-lg border border-zinc-200 bg-white overflow-hidden shadow-sm">
+        <div className="flex items-center gap-2">
+          {/* Historial shortcut */}
           <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setFecha((f) => addDays(f, -1))}
-            className="rounded-none border-r border-zinc-200 h-9 w-9"
-            aria-label="Día anterior"
+            variant="outline"
+            size="sm"
+            onClick={() => setFecha(addDays(todayISO(), -1))}
+            className="gap-1.5 text-xs h-9 text-zinc-600"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <History className="h-3.5 w-3.5" />
+            Historial
           </Button>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="px-3 text-sm font-medium text-zinc-700 bg-white border-none outline-none cursor-pointer h-9"
-          />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setFecha((f) => addDays(f, 1))}
-            className="rounded-none border-l border-zinc-200 h-9 w-9"
-            aria-label="Día siguiente"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+
+          {/* Date navigator */}
+          <div className="flex items-center rounded-lg border border-zinc-200 bg-white overflow-hidden shadow-sm">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setFecha((f) => addDays(f, -1))}
+              className="rounded-none border-r border-zinc-200 h-9 w-9"
+              aria-label="Día anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <input
+              type="date"
+              value={fecha}
+              max={todayISO()}
+              onChange={(e) => setFecha(e.target.value)}
+              className="px-3 text-sm font-medium text-zinc-700 bg-white border-none outline-none cursor-pointer h-9"
+            />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setFecha((f) => addDays(f, 1))}
+              disabled={fecha >= todayISO()}
+              className="rounded-none border-l border-zinc-200 h-9 w-9 disabled:opacity-30"
+              aria-label="Día siguiente"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -212,7 +239,11 @@ export function AsistenciasView({ horarios }: Props) {
           {!selectedHorarioId ? (
             <div className="flex flex-col items-center justify-center py-24 text-zinc-400 gap-2">
               <CheckCircle className="h-10 w-10 opacity-20" />
-              <p className="text-sm">Selecciona una clase para registrar asistencia</p>
+              <p className="text-sm">
+                {isReadOnly
+                  ? "Selecciona una clase para ver el reporte"
+                  : "Selecciona una clase para registrar asistencia"}
+              </p>
             </div>
           ) : loadingEstudiantes ? (
             <div className="flex items-center justify-center py-24 text-zinc-400 gap-2">
@@ -221,11 +252,60 @@ export function AsistenciasView({ horarios }: Props) {
             </div>
           ) : estudiantes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-zinc-400 gap-2">
-              <p className="text-sm">No hay alumnos matriculados en esta clase</p>
+              <p className="text-sm">No hay alumnos matriculados en esta clase para esta fecha</p>
             </div>
-          ) : (
+          ) : isReadOnly ? (
+            /* ── Read-only report mode ── */
             <>
-              {/* Action bar */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-zinc-700">
+                    {estudiantes.length} alumno{estudiantes.length !== 1 ? "s" : ""}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {rPresentes > 0   && <Badge className="bg-emerald-100 text-emerald-700 border-0">{rPresentes} P</Badge>}
+                    {rTardes > 0      && <Badge className="bg-amber-100 text-amber-700 border-0">{rTardes} T</Badge>}
+                    {rAusentes > 0    && <Badge className="bg-red-100 text-red-700 border-0">{rAusentes} A</Badge>}
+                    {rSinRegistro > 0 && <Badge className="bg-zinc-100 text-zinc-500 border-0">{rSinRegistro} sin registro</Badge>}
+                  </div>
+                </div>
+                <span className="flex items-center gap-1.5 text-xs text-zinc-400">
+                  <History className="h-3.5 w-3.5" />
+                  Reporte histórico · Solo lectura
+                </span>
+              </div>
+
+              <div className="divide-y divide-zinc-100">
+                {estudiantes.map((est, idx) => {
+                  const estadoGuardado = est.asistencia?.estado;
+                  const estadoInfo = ESTADOS.find((e) => e.value === estadoGuardado);
+                  const Icon = estadoInfo?.icon;
+                  return (
+                    <div key={est.idMatricula} className="flex items-center px-5 py-3 gap-4">
+                      <span className="text-xs font-mono text-zinc-300 w-5 shrink-0 text-right">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 truncate">
+                          {est.alumno.apellido}, {est.alumno.nombre}
+                        </p>
+                      </div>
+                      {estadoInfo && Icon ? (
+                        <span className={cn("flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium", estadoInfo.bg)}>
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          {estadoInfo.label}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-zinc-400 border border-zinc-200 rounded-full px-2.5 py-1">
+                          Sin registro
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            /* ── Editable mode (today only) ── */
+            <>
               <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-zinc-700">{estudiantes.length} alumno{estudiantes.length !== 1 ? "s" : ""}</span>
@@ -251,22 +331,17 @@ export function AsistenciasView({ horarios }: Props) {
                 </div>
               </div>
 
-              {/* Student rows */}
               <div className="divide-y divide-zinc-100">
                 {estudiantes.map((est, idx) => {
                   const estadoActual = estadoMap[est.idMatricula] ?? "presente";
-                  const estadoInfo = ESTADOS.find((e) => e.value === estadoActual)!;
                   return (
                     <div key={est.idMatricula} className="flex items-center px-5 py-3 gap-4 hover:bg-zinc-50 transition-colors">
-                      {/* Index + name */}
                       <span className="text-xs font-mono text-zinc-300 w-5 shrink-0 text-right">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-zinc-900 truncate">
                           {est.alumno.apellido}, {est.alumno.nombre}
                         </p>
                       </div>
-
-                      {/* Estado buttons */}
                       <div className="flex items-center gap-1">
                         {ESTADOS.map((e) => {
                           const Icon = e.icon;

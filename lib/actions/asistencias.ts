@@ -64,6 +64,7 @@ export async function getEstudiantesDelHorario(
     where: {
       idHorario,
       estado: "activa",
+      fechaInicio: { lte: fechaDate },
       alumno: { habilitado: true },
       dias: { some: { dia } },
     },
@@ -110,6 +111,12 @@ export async function guardarAsistencias(
   if (!usuario) return { error: "Usuario no encontrado. Cierra sesión e ingresa nuevamente." };
 
   if (!registros.length) return { error: "No hay registros para guardar" };
+
+  // Peru is UTC-5 year-round; compute "today" in Lima time
+  const nowPeru = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const todayPeru = `${nowPeru.getUTCFullYear()}-${String(nowPeru.getUTCMonth() + 1).padStart(2, "0")}-${String(nowPeru.getUTCDate()).padStart(2, "0")}`;
+  if (fecha < todayPeru) return { error: "No se puede registrar asistencia en fechas pasadas." };
+  if (fecha > todayPeru) return { error: "No se puede registrar asistencia en fechas futuras." };
 
   const fechaDate = new Date(fecha + "T00:00:00.000Z");
 
