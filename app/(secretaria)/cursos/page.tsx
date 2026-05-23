@@ -17,7 +17,10 @@ const getCursos = unstable_cache(
   { tags: ["cursos"] }
 );
 
+export const dynamic = "force-dynamic";
+
 export default async function CursosPage() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const cursos = await getCursos();
   return <CursosTable cursos={cursos} />;
 }

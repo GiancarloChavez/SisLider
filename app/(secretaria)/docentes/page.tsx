@@ -16,7 +16,10 @@ const getDocentes = unstable_cache(
   { tags: ["docentes"] }
 );
 
+export const dynamic = "force-dynamic";
+
 export default async function DocentesPage() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const docentes = await getDocentes();
   return <DocentesTable docentes={docentes} />;
 }

@@ -44,7 +44,10 @@ const getMatriculas = unstable_cache(
   { tags: ["matriculas"] }
 );
 
+export const dynamic = "force-dynamic";
+
 export default async function MatriculasPage() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const matriculas = await getMatriculas();
   return <MatriculasTable matriculas={matriculas} />;
 }

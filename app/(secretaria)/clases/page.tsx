@@ -3,7 +3,10 @@ import { ClasesView } from "./ClasesView";
 
 type PageProps = { searchParams: Promise<{ curso?: string; horario?: string }> };
 
+export const dynamic = "force-dynamic";
+
 export default async function ClasesPage({ searchParams }: PageProps) {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const [cursos, params] = await Promise.all([getCursosConHorarios(), searchParams]);
 
   const totalHorarios = cursos.reduce((s, c) => s + c.horarios.length, 0);

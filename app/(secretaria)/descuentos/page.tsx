@@ -22,7 +22,10 @@ const getDescuentos = unstable_cache(
   { tags: ["descuentos"] }
 );
 
+export const dynamic = "force-dynamic";
+
 export default async function DescuentosPage() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const descuentos = await getDescuentos();
   return <DescuentosTable descuentos={descuentos} />;
 }

@@ -3,7 +3,10 @@ import { ChevronLeft } from "lucide-react";
 import { getMatriculaFormData } from "@/lib/actions/matriculas";
 import { NuevaMatriculaForm } from "./NuevaMatriculaForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function NuevaMatriculaPage() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const { horarios, descuentos } = await getMatriculaFormData();
 
   return (

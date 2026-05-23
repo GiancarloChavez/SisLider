@@ -141,9 +141,12 @@ const getDashboardData = unstable_cache(
   { tags: ["dashboard", "matriculas", "pagos", "alumnos"], revalidate: 60 },
 );
 
+export const dynamic = "force-dynamic";
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return null;
   const [data, horarios] = await Promise.all([
     getDashboardData(),
     getHorariosCalendario(),
