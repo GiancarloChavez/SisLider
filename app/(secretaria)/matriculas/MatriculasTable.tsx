@@ -2,18 +2,14 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { Plus, PowerOff, Power, UserPlus, UserCheck, Search, ClipboardList } from "lucide-react";
+import { Plus, Search, ClipboardList, Users, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toggleMatriculaEstado, type MatriculaSerialized } from "@/lib/actions/matriculas";
+import type { CursoConMatriculas } from "@/lib/actions/matriculas";
 
 const DIA_ABREV: Record<string, string> = {
   Lunes: "Lu", Martes: "Ma", Miércoles: "Mi",
@@ -21,43 +17,49 @@ const DIA_ABREV: Record<string, string> = {
 };
 const DIA_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-const DIA_COLORS: Record<string, string> = {
-  Lunes: "bg-blue-50 text-blue-700 border-blue-200",
-  Martes: "bg-violet-50 text-violet-700 border-violet-200",
-  Miércoles: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Jueves: "bg-orange-50 text-orange-700 border-orange-200",
-  Viernes: "bg-pink-50 text-pink-700 border-pink-200",
-  Sábado: "bg-teal-50 text-teal-700 border-teal-200",
-};
+function fmtDate(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("es-PE", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
 
-type Props = { matriculas: MatriculaSerialized[] };
+function getPeriodoEstado(fechaInicio: string, fechaFin: string) {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const inicio = new Date(fechaInicio + "T00:00:00");
+  const fin = new Date(fechaFin + "T00:00:00");
+  if (hoy < inicio) return "proximo";
+  if (hoy > fin) return "finalizado";
+  return "vigente";
+}
 
-export function MatriculasTable({ matriculas }: Props) {
+type Props = { cursos: CursoConMatriculas[] };
+
+export function MatriculasTable({ cursos }: Props) {
   const router = useRouter();
-  const [loading, setLoading] = useState<string | null>(null);
-  const [tipoDialogOpen, setTipoDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return matriculas;
-    return matriculas.filter(
-      (m) =>
-        m.alumno.nombre.toLowerCase().includes(q) ||
-        m.alumno.apellido.toLowerCase().includes(q) ||
-        (m.alumno.dni ?? "").includes(q) ||
-        m.horario.curso.nombre.toLowerCase().includes(q)
+    if (!q) return cursos;
+    return cursos.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(q) ||
+        (c.nivel ?? "").toLowerCase().includes(q)
     );
-  }, [matriculas, search]);
+  }, [cursos, search]);
 
-  async function handleToggle(m: MatriculaSerialized) {
-    setLoading(m.id);
-    await toggleMatriculaEstado(m.id, m.estado);
-    toast.success(m.estado === "activa" ? "Matrícula dada de baja" : "Matrícula reactivada");
-    setLoading(null);
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
-  const activas = matriculas.filter((m) => m.estado === "activa").length;
+  const totalAlumnos = cursos.reduce((s, c) => s + c.totalAlumnos, 0);
+  const vigentes = cursos.filter((c) => getPeriodoEstado(c.fechaInicio, c.fechaFin) === "vigente" && c.activo).length;
 
   return (
     <>
@@ -65,10 +67,10 @@ export function MatriculasTable({ matriculas }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Matrículas</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {activas} activa{activas !== 1 ? "s" : ""} · {matriculas.length} total
+            {vigentes} curso{vigentes !== 1 ? "s" : ""} vigente{vigentes !== 1 ? "s" : ""} · {totalAlumnos} alumno{totalAlumnos !== 1 ? "s" : ""} matriculado{totalAlumnos !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button onClick={() => setTipoDialogOpen(true)} className="gap-2 shadow-sm">
+        <Button onClick={() => router.push("/matriculas/nueva")} className="gap-2 shadow-sm">
           <Plus className="h-4 w-4" />
           Nueva matrícula
         </Button>
@@ -79,7 +81,7 @@ export function MatriculasTable({ matriculas }: Props) {
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
             <Input
-              placeholder="Buscar por alumno, DNI o curso..."
+              placeholder="Buscar por nombre o nivel..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 text-sm bg-zinc-50 border-zinc-200"
@@ -95,152 +97,144 @@ export function MatriculasTable({ matriculas }: Props) {
         <Table>
           <TableHeader>
             <TableRow className="bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="font-semibold text-zinc-600">Alumno</TableHead>
+              <TableHead className="w-8" />
               <TableHead className="font-semibold text-zinc-600">Curso</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Horario</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Precio / mes</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Desde</TableHead>
+              <TableHead className="font-semibold text-zinc-600">Período</TableHead>
+              <TableHead className="font-semibold text-zinc-600">Inscritos / Cupo</TableHead>
+              <TableHead className="font-semibold text-zinc-600">Precio mensual</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
-              <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={6}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <ClipboardList className="h-7 w-7 text-zinc-300" />
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-medium text-zinc-500">
-                        {search ? "Sin resultados" : "No hay matrículas registradas"}
+                        {search ? "Sin resultados" : "No hay cursos registrados"}
                       </p>
                       <p className="text-xs text-zinc-400 mt-1">
-                        {search ? "Prueba con otro término" : "Crea la primera usando el botón de arriba"}
+                        {search ? "Prueba con otro término" : "Crea cursos primero en la sección Cursos"}
                       </p>
                     </div>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((m) => (
-                <TableRow
-                  key={m.id}
-                  className={cn(
-                    "transition-colors duration-100 hover:bg-zinc-50/70",
-                    m.estado !== "activa" && "opacity-55"
-                  )}
-                >
-                  <TableCell>
-                    <p className="font-medium text-zinc-900">{m.alumno.apellido}, {m.alumno.nombre}</p>
-                    {m.alumno.dni && (
-                      <p className="text-xs font-mono text-zinc-400 mt-0.5">{m.alumno.dni}</p>
+              filtered.flatMap((c) => {
+                const estado = getPeriodoEstado(c.fechaInicio, c.fechaFin);
+                const isExpanded = expanded.has(c.id);
+                const libreTotal = c.cupoTotal - c.totalAlumnos;
+
+                const estadoConfig = {
+                  vigente: { label: "Vigente", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+                  proximo: { label: "Próximo", cls: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+                  finalizado: { label: "Finalizado", cls: "bg-zinc-100 text-zinc-500 border-zinc-200", dot: "bg-zinc-400" },
+                }[estado];
+
+                return [
+                  <TableRow
+                    key={c.id}
+                    className={cn(
+                      "cursor-pointer transition-colors hover:bg-zinc-50/70",
+                      !c.activo && "opacity-55"
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-medium text-zinc-800">{m.horario.curso.nombre}</p>
-                    {m.horario.curso.nivel && (
-                      <p className="text-xs text-zinc-400 mt-0.5">{m.horario.curso.nivel}</p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1 mb-0.5">
-                      {[...m.diasMatricula]
-                        .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))
-                        .map((d) => (
-                          <span
-                            key={d}
-                            className={cn(
-                              "inline-flex rounded border px-1.5 py-0 text-[11px] font-medium",
-                              DIA_COLORS[d] ?? "bg-zinc-50 text-zinc-600 border-zinc-200"
-                            )}
-                          >
-                            {DIA_ABREV[d] ?? d}
+                    onClick={() => c.horarios.length > 0 && toggleExpand(c.id)}
+                  >
+                    <TableCell>
+                      {c.horarios.length > 0 ? (
+                        isExpanded
+                          ? <ChevronDown className="h-4 w-4 text-zinc-400" />
+                          : <ChevronRight className="h-4 w-4 text-zinc-400" />
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-semibold text-zinc-900">{c.nombre}</p>
+                      {c.nivel && <p className="text-xs text-zinc-400">{c.nivel}</p>}
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-sm text-zinc-700">
+                        {fmtDate(c.fechaInicio)} → {fmtDate(c.fechaFin)}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-zinc-400" />
+                        <span className="text-sm font-medium text-zinc-800">
+                          {c.totalAlumnos}
+                        </span>
+                        {c.cupoTotal > 0 && (
+                          <span className="text-xs text-zinc-400">/ {c.cupoTotal}</span>
+                        )}
+                        {c.cupoTotal > 0 && (
+                          <span className={cn(
+                            "text-xs font-medium ml-1",
+                            libreTotal > 0 ? "text-green-600" : "text-red-500"
+                          )}>
+                            ({libreTotal > 0 ? `${libreTotal} libres` : "lleno"})
                           </span>
-                        ))}
-                    </div>
-                    <span className="text-xs font-mono text-zinc-400">
-                      {m.horario.horaInicio}–{m.horario.horaFin}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono font-semibold text-zinc-900">
-                      S/{m.precioFinalMensual.toFixed(2)}
-                    </span>
-                    {m.descuento && (
-                      <p className="text-xs text-emerald-600 mt-0.5">{m.descuento.nombre}</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-zinc-500">
-                    {new Date(m.fechaInicio).toLocaleDateString("es-PE", {
-                      day: "2-digit", month: "short", year: "numeric",
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                      m.estado === "activa"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-zinc-100 text-zinc-500 border-zinc-200"
-                    )}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", m.estado === "activa" ? "bg-emerald-500" : "bg-zinc-400")} />
-                      {m.estado === "activa" ? "Activa" : "Inactiva"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="icon-sm" variant="ghost"
-                      disabled={loading === m.id}
-                      onClick={() => handleToggle(m)}
-                      title={m.estado === "activa" ? "Dar de baja" : "Reactivar"}
-                      className={m.estado === "activa" ? "text-red-400 hover:text-red-600 hover:bg-red-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}
-                    >
-                      {m.estado === "activa" ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono font-semibold text-zinc-800">
+                        S/{c.precioMensual.toFixed(2)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                        estadoConfig.cls
+                      )}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full", estadoConfig.dot)} />
+                        {estadoConfig.label}
+                      </span>
+                    </TableCell>
+                  </TableRow>,
+                  ...(isExpanded && c.horarios.length > 0
+                    ? c.horarios.map((h) => (
+                        <TableRow key={h.id} className="bg-zinc-50/60 hover:bg-zinc-50">
+                          <TableCell />
+                          <TableCell colSpan={2}>
+                            <div className="pl-4 flex items-center gap-3 text-sm text-zinc-600">
+                              <span className="font-medium">{h.docente.apellido}, {h.docente.nombre}</span>
+                              <span className="text-zinc-300">·</span>
+                              <span>{h.aula.nombre}</span>
+                              <span className="text-zinc-300">·</span>
+                              <span className="font-mono text-xs">{h.horaInicio}–{h.horaFin}</span>
+                              <span className="flex gap-1">
+                                {[...h.dias]
+                                  .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))
+                                  .map((d) => (
+                                    <span key={d} className="inline-flex rounded border border-zinc-200 bg-white px-1.5 py-0 text-[11px] font-medium text-zinc-600">
+                                      {DIA_ABREV[d] ?? d}
+                                    </span>
+                                  ))}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className={cn(
+                              "text-xs font-medium",
+                              h.alumnosActivos < h.cupoMaximo ? "text-green-600" : "text-red-500"
+                            )}>
+                              {h.alumnosActivos}/{h.cupoMaximo} inscritos
+                            </span>
+                          </TableCell>
+                          <TableCell colSpan={2} />
+                        </TableRow>
+                      ))
+                    : []),
+                ];
+              })
             )}
           </TableBody>
         </Table>
       </div>
-
-      {/* Tipo dialog */}
-      <Dialog open={tipoDialogOpen} onOpenChange={setTipoDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>¿Es un estudiante nuevo?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-zinc-500">
-            Indica si el alumno ya está registrado en el sistema o si es su primera vez.
-          </p>
-          <div className="flex flex-col gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-14 text-left"
-              onClick={() => { setTipoDialogOpen(false); router.push("/alumnos?nuevo=true"); }}
-            >
-              <UserPlus className="h-5 w-5 text-zinc-500 shrink-0" />
-              <div>
-                <p className="font-medium text-zinc-900">Estudiante nuevo</p>
-                <p className="text-xs text-zinc-400">Registrar alumno y luego matricular</p>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-14 text-left"
-              onClick={() => { setTipoDialogOpen(false); router.push("/matriculas/nueva"); }}
-            >
-              <UserCheck className="h-5 w-5 text-zinc-500 shrink-0" />
-              <div>
-                <p className="font-medium text-zinc-900">Ex alumno / ya registrado</p>
-                <p className="text-xs text-zinc-400">Buscar alumno existente y matricular</p>
-              </div>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

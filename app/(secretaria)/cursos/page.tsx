@@ -10,6 +10,8 @@ const getCursos = unstable_cache(
     return raw.map((c) => ({
       ...c,
       precioMensual: Number(c.precioMensual),
+      fechaInicio: c.fechaInicio.toISOString().slice(0, 10),
+      fechaFin: c.fechaFin.toISOString().slice(0, 10),
       createdAt: c.createdAt.toISOString(),
     }));
   },

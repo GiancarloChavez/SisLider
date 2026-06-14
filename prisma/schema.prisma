@@ -95,6 +95,8 @@ model Curso {
   nombre        String   @db.VarChar(100)
   nivel         String?  @db.VarChar(50)
   precioMensual Decimal  @map("precio_mensual") @db.Decimal(10, 2)
+  fechaInicio   DateTime @map("fecha_inicio") @db.Date
+  fechaFin      DateTime @map("fecha_fin") @db.Date
   activo        Boolean  @default(true)
   createdAt     DateTime @default(now()) @map("created_at")
 

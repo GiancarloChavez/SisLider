@@ -34,22 +34,26 @@ export type DescuentoOption = {
   valor: number;
 };
 
-export type MatriculaSerialized = {
+export type CursoConMatriculas = {
   id: string;
-  precioFinalMensual: number;
+  nombre: string;
+  nivel: string | null;
+  precioMensual: number;
   fechaInicio: string;
-  estado: string;
-  diasMatricula: string[];
-  alumno: { id: string; nombre: string; apellido: string; dni: string | null };
-  horario: {
-    curso: { nombre: string; nivel: string | null };
-    docente: { nombre: string; apellido: string };
-    aula: { nombre: string };
+  fechaFin: string;
+  activo: boolean;
+  totalAlumnos: number;
+  cupoTotal: number;
+  horarios: {
+    id: string;
     dias: string[];
     horaInicio: string;
     horaFin: string;
-  };
-  descuento: { nombre: string } | null;
+    cupoMaximo: number;
+    alumnosActivos: number;
+    docente: { nombre: string; apellido: string };
+    aula: { nombre: string };
+  }[];
 };
 
 export type MatriculaFormState = {
@@ -87,15 +91,25 @@ export async function buscarAlumnos(query: string): Promise<AlumnoSearchResult[]
   }));
 }
 
-// ─── Form data ────────────────────────────────────────────────────────────────
+// ─── Form data (para nueva matrícula) ────────────────────────────────────────
 
 export async function getMatriculaFormData(): Promise<{
   horarios: HorarioConCupo[];
   descuentos: DescuentoOption[];
 }> {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
   const [horariosRaw, descuentosRaw] = await Promise.all([
     prisma.horario.findMany({
-      where: { activo: true },
+      where: {
+        activo: true,
+        curso: {
+          activo: true,
+          fechaInicio: { lte: hoy },
+          fechaFin: { gte: hoy },
+        },
+      },
       include: {
         curso: true,
         docente: true,
@@ -137,6 +151,46 @@ export async function getMatriculaFormData(): Promise<{
   return { horarios, descuentos };
 }
 
+// ─── Cursos con matrículas (para página principal) ────────────────────────────
+
+export async function getCursosConMatriculas(): Promise<CursoConMatriculas[]> {
+  const cursos = await prisma.curso.findMany({
+    orderBy: [{ activo: "desc" }, { nombre: "asc" }],
+    include: {
+      horarios: {
+        include: {
+          dias: true,
+          docente: true,
+          aula: true,
+          _count: { select: { matriculas: { where: { estado: "activa" } } } },
+        },
+      },
+    },
+  });
+
+  return cursos.map((c) => ({
+    id: c.id,
+    nombre: c.nombre,
+    nivel: c.nivel,
+    precioMensual: Number(c.precioMensual),
+    fechaInicio: c.fechaInicio.toISOString().slice(0, 10),
+    fechaFin: c.fechaFin.toISOString().slice(0, 10),
+    activo: c.activo,
+    totalAlumnos: c.horarios.reduce((s, h) => s + h._count.matriculas, 0),
+    cupoTotal: c.horarios.reduce((s, h) => s + h.cupoMaximo, 0),
+    horarios: c.horarios.map((h) => ({
+      id: h.id,
+      dias: h.dias.map((d) => d.dia),
+      horaInicio: h.horaInicio.toISOString().slice(11, 16),
+      horaFin: h.horaFin.toISOString().slice(11, 16),
+      cupoMaximo: h.cupoMaximo,
+      alumnosActivos: h._count.matriculas,
+      docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
+      aula: { nombre: h.aula.nombre },
+    })),
+  }));
+}
+
 // ─── Create matrícula ─────────────────────────────────────────────────────────
 
 const matriculaSchema = z.object({
@@ -163,14 +217,12 @@ export async function createMatricula(
 
   const { idAlumno, idHorario, idDescuento, dias } = parsed.data;
 
-  // Validate horario exists and fetch curso price
   const horario = await prisma.horario.findUnique({
     where: { id: idHorario },
     include: { curso: true },
   });
   if (!horario) return { errors: { idHorario: ["Horario no encontrado"] } };
 
-  // Validate existing enrollment
   const existing = await prisma.matricula.findUnique({
     where: { idAlumno_idHorario: { idAlumno, idHorario } },
   });
@@ -193,7 +245,6 @@ export async function createMatricula(
   const ultimoDiaMes = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   const txResult = await prisma.$transaction(async (tx) => {
-    // Check cupo inside transaction to avoid race conditions
     const cupoOcupado = await tx.matricula.count({
       where: { idHorario, estado: "activa" },
     });

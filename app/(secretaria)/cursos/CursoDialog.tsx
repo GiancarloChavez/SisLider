@@ -86,6 +86,34 @@ export function CursoDialog({ open, onClose, curso }: Props) {
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="fechaInicio">Fecha de inicio *</Label>
+              <Input
+                id="fechaInicio"
+                name="fechaInicio"
+                type="date"
+                defaultValue={curso?.fechaInicio ?? ""}
+              />
+              {state.errors?.fechaInicio && (
+                <p className="text-xs text-destructive">{state.errors.fechaInicio[0]}</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="fechaFin">Fecha de fin *</Label>
+              <Input
+                id="fechaFin"
+                name="fechaFin"
+                type="date"
+                defaultValue={curso?.fechaFin ?? ""}
+              />
+              {state.errors?.fechaFin && (
+                <p className="text-xs text-destructive">{state.errors.fechaFin[0]}</p>
+              )}
+            </div>
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar

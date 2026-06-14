@@ -34,8 +34,13 @@ export type HorarioFormState = {
 };
 
 export async function getHorarioSelectData(): Promise<HorarioSelectData> {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
   const [cursos, docentes, aulas] = await Promise.all([
-    prisma.curso.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
+    prisma.curso.findMany({
+      where: { activo: true, fechaInicio: { lte: hoy }, fechaFin: { gte: hoy } },
+      orderBy: { nombre: "asc" },
+    }),
     prisma.docente.findMany({
       where: { activo: true },
       orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
