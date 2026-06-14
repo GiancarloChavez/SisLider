@@ -81,42 +81,34 @@ export type CursoConHorarios = {
 
 export const getCursosConHorarios = unstable_cache(
   async (): Promise<CursoConHorarios[]> => {
-    const cursos = await prisma.curso.findMany({
-      where: { activo: true },
-      orderBy: { nombre: "asc" },
-      include: {
-        horarios: {
-          where: { activo: true },
-          orderBy: { horaInicio: "asc" },
-          include: {
-            docente: true,
-            aula: true,
-            dias: true,
-            _count: {
-              select: {
-                matriculas: { where: { estado: "activa" } },
-              },
-            },
+    const [cursos, totalCounts, habCounts] = await Promise.all([
+      prisma.curso.findMany({
+        where: { activo: true },
+        orderBy: { nombre: "asc" },
+        include: {
+          horarios: {
+            where: { activo: true },
+            orderBy: { horaInicio: "asc" },
+            include: { docente: true, aula: true, dias: true },
           },
         },
-      },
-    });
+      }),
+      prisma.matricula.groupBy({
+        by: ["idHorario"],
+        where: { estado: "activa" },
+        _count: { _all: true },
+      }),
+      prisma.matricula.groupBy({
+        by: ["idHorario"],
+        where: { estado: "activa", alumno: { habilitado: true } },
+        _count: { _all: true },
+      }),
+    ]);
 
-    // Para alumnosHabilitados hacemos una query adicional por batch
-    const horarioIds = cursos.flatMap((c) => c.horarios.map((h) => h.id));
-    const habilitadosCounts = await prisma.matricula.groupBy({
-      by: ["idHorario"],
-      where: {
-        idHorario: { in: horarioIds },
-        estado: "activa",
-        alumno: { habilitado: true },
-      },
-      _count: { id: true },
-    });
+    const totalMap: Record<string, number> = {};
+    for (const r of totalCounts) totalMap[r.idHorario] = r._count._all;
     const habMap: Record<string, number> = {};
-    for (const row of habilitadosCounts) {
-      habMap[row.idHorario] = row._count.id;
-    }
+    for (const r of habCounts) habMap[r.idHorario] = r._count._all;
 
     return cursos.map((c) => ({
       id: c.id,
@@ -133,7 +125,7 @@ export const getCursosConHorarios = unstable_cache(
         aula: { nombre: h.aula.nombre },
         cupoMaximo: h.cupoMaximo,
         alumnosHabilitados: habMap[h.id] ?? 0,
-        alumnosTotales: h._count.matriculas,
+        alumnosTotales: totalMap[h.id] ?? 0,
       })),
     }));
   },
