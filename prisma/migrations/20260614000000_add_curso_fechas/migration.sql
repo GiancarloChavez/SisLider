@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "cursos" ADD COLUMN "fecha_inicio" DATE NOT NULL DEFAULT '2026-01-01';
+ALTER TABLE "cursos" ADD COLUMN "fecha_fin" DATE NOT NULL DEFAULT '2026-12-31';
