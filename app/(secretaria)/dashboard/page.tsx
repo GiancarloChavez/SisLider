@@ -41,29 +41,29 @@ const getDashboardData = unstable_cache(
       estadosPagoRaw,
       horariosActivos,
     ] = await Promise.all([
-      prisma.alumno.count({ where: { habilitado: true } }).catch((e) => { console.error("[dashboard] alumno.count:", e); throw e; }),
-      prisma.matricula.count({ where: { estado: "activa" } }).catch((e) => { console.error("[dashboard] matricula.count:", e); throw e; }),
-      prisma.mesPago.count({ where: { estado: { in: ["pendiente", "parcial"] } } }).catch((e) => { console.error("[dashboard] mesPago.count:", e); throw e; }),
-      prisma.docente.count().catch((e) => { console.error("[dashboard] docente.count:", e); throw e; }),
-      prisma.horario.count({ where: { activo: true } }).catch((e) => { console.error("[dashboard] horario.count:", e); throw e; }),
+      prisma.alumno.count({ where: { habilitado: true } }),
+      prisma.matricula.count({ where: { estado: "activa" } }),
+      prisma.mesPago.count({ where: { estado: { in: ["pendiente", "parcial"] } } }),
+      prisma.docente.count(),
+      prisma.horario.count({ where: { activo: true } }),
       prisma.asistencia.count({
         where: { fecha: { gte: todayStart, lte: todayEnd }, estado: "presente" },
-      }).catch((e) => { console.error("[dashboard] asistencia.count:", e); throw e; }),
+      }),
       prisma.abono.aggregate({
         _sum: { monto: true },
         where: { createdAt: { gte: startOfMonth } },
-      }).catch((e) => { console.error("[dashboard] abono.aggregate:", e); throw e; }),
+      }),
       prisma.mesPago.findMany({
         where: { estado: { in: ["pendiente", "parcial"] } },
         include: { matricula: { include: { alumno: true } } },
         orderBy: [{ anio: "asc" }, { mes: "asc" }],
         take: 10,
-      }).catch((e) => { console.error("[dashboard] mesPago.findMany:", e); throw e; }),
+      }),
       prisma.abono.findMany({
         where: { createdAt: { gte: sixMonthsAgo } },
         select: { monto: true, createdAt: true },
-      }).catch((e) => { console.error("[dashboard] abono.findMany:", e); throw e; }),
-      prisma.mesPago.groupBy({ by: ["estado"], _count: { _all: true } }).catch((e) => { console.error("[dashboard] mesPago.groupBy:", e); throw e; }),
+      }),
+      prisma.mesPago.groupBy({ by: ["estado"], _count: { _all: true } }),
       prisma.horario.findMany({
         where: { activo: true },
         include: {
