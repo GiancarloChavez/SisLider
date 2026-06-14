@@ -39,7 +39,8 @@ const getDashboardData = unstable_cache(
       mesesPendientes,
       abonosHistorial,
       estadosPagoRaw,
-      horariosActivos,
+      horariosRaw,
+      matriculasXHorario,
     ] = await Promise.all([
       prisma.alumno.count({ where: { habilitado: true } }),
       prisma.matricula.count({ where: { estado: "activa" } }),
@@ -66,12 +67,21 @@ const getDashboardData = unstable_cache(
       prisma.mesPago.groupBy({ by: ["estado"], _count: { _all: true } }),
       prisma.horario.findMany({
         where: { activo: true },
-        include: {
-          curso: { select: { id: true, nombre: true } },
-          _count: { select: { matriculas: { where: { estado: "activa" } } } },
-        },
-      }).catch((e) => { console.error("[dashboard] horario.findMany:", e); throw e; }),
+        include: { curso: { select: { id: true, nombre: true } } },
+      }),
+      prisma.matricula.groupBy({
+        by: ["idHorario"],
+        where: { estado: "activa" },
+        _count: { _all: true },
+      }),
     ]);
+
+    const countMap: Record<string, number> = {};
+    for (const r of matriculasXHorario) countMap[r.idHorario] = r._count._all;
+    const horariosActivos = horariosRaw.map((h) => ({
+      ...h,
+      _count: { matriculas: countMap[h.id] ?? 0 },
+    }));
 
     // Build last-6-months ingresos
     const byMonth: Record<string, number> = {};

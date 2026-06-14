@@ -19,17 +19,26 @@ export type HorarioCalendario = {
 
 export const getHorariosCalendario = unstable_cache(
   async (): Promise<HorarioCalendario[]> => {
-    const horarios = await prisma.horario.findMany({
-      where: { activo: true },
-      include: {
-        curso: true,
-        docente: true,
-        aula: true,
-        dias: true,
-        _count: { select: { matriculas: { where: { estado: "activa" } } } },
-      },
-      orderBy: { horaInicio: "asc" },
-    });
+    const [horarios, counts] = await Promise.all([
+      prisma.horario.findMany({
+        where: { activo: true },
+        include: {
+          curso: { select: { id: true, nombre: true, nivel: true } },
+          docente: true,
+          aula: true,
+          dias: true,
+        },
+        orderBy: { horaInicio: "asc" },
+      }),
+      prisma.matricula.groupBy({
+        by: ["idHorario"],
+        where: { estado: "activa" },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const countMap: Record<string, number> = {};
+    for (const r of counts) countMap[r.idHorario] = r._count._all;
 
     return horarios.map((h) => ({
       id: h.id,
@@ -37,7 +46,7 @@ export const getHorariosCalendario = unstable_cache(
       horaFin: h.horaFin.toISOString().slice(11, 16),
       dias: h.dias.map((d) => d.dia),
       cupoMaximo: h.cupoMaximo,
-      cupoOcupado: h._count.matriculas,
+      cupoOcupado: countMap[h.id] ?? 0,
       curso: { id: h.curso.id, nombre: h.curso.nombre, nivel: h.curso.nivel },
       docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
       aula: { nombre: h.aula.nombre },
