@@ -166,11 +166,9 @@ export default async function DashboardPage() {
     ]);
   } catch (err: unknown) {
     const e = err as Record<string, unknown>;
-    console.error("DASHBOARD_ERR_TYPE:", e?.constructor?.name ?? typeof err);
-    console.error("DASHBOARD_ERR_MSG:", e?.message ?? String(err));
-    console.error("DASHBOARD_ERR_CODE:", e?.errorCode ?? e?.code ?? "n/a");
-    console.error("DASHBOARD_ERR_META:", JSON.stringify(e?.meta ?? {}));
-    console.error("DASHBOARD_ERR_STACK:", e?.stack ?? "");
+    console.error("DBG name=" + String(e?.name ?? e?.constructor?.name ?? "?"));
+    console.error("DBG code=" + String(e?.errorCode ?? e?.code ?? "none"));
+    console.error("DBG msg=" + String(e?.message ?? err).slice(0, 300));
     throw err;
   }
 
