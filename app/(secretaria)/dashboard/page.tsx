@@ -41,36 +41,36 @@ const getDashboardData = unstable_cache(
       estadosPagoRaw,
       horariosActivos,
     ] = await Promise.all([
-      prisma.alumno.count({ where: { habilitado: true } }),
-      prisma.matricula.count({ where: { estado: "activa" } }),
-      prisma.mesPago.count({ where: { estado: { in: ["pendiente", "parcial"] } } }),
-      prisma.docente.count(),
-      prisma.horario.count({ where: { activo: true } }),
+      prisma.alumno.count({ where: { habilitado: true } }).catch((e) => { console.error("[dashboard] alumno.count:", e); throw e; }),
+      prisma.matricula.count({ where: { estado: "activa" } }).catch((e) => { console.error("[dashboard] matricula.count:", e); throw e; }),
+      prisma.mesPago.count({ where: { estado: { in: ["pendiente", "parcial"] } } }).catch((e) => { console.error("[dashboard] mesPago.count:", e); throw e; }),
+      prisma.docente.count().catch((e) => { console.error("[dashboard] docente.count:", e); throw e; }),
+      prisma.horario.count({ where: { activo: true } }).catch((e) => { console.error("[dashboard] horario.count:", e); throw e; }),
       prisma.asistencia.count({
         where: { fecha: { gte: todayStart, lte: todayEnd }, estado: "presente" },
-      }),
+      }).catch((e) => { console.error("[dashboard] asistencia.count:", e); throw e; }),
       prisma.abono.aggregate({
         _sum: { monto: true },
         where: { createdAt: { gte: startOfMonth } },
-      }),
+      }).catch((e) => { console.error("[dashboard] abono.aggregate:", e); throw e; }),
       prisma.mesPago.findMany({
         where: { estado: { in: ["pendiente", "parcial"] } },
         include: { matricula: { include: { alumno: true } } },
         orderBy: [{ anio: "asc" }, { mes: "asc" }],
         take: 10,
-      }),
+      }).catch((e) => { console.error("[dashboard] mesPago.findMany:", e); throw e; }),
       prisma.abono.findMany({
         where: { createdAt: { gte: sixMonthsAgo } },
         select: { monto: true, createdAt: true },
-      }),
-      prisma.mesPago.groupBy({ by: ["estado"], _count: { id: true } }),
+      }).catch((e) => { console.error("[dashboard] abono.findMany:", e); throw e; }),
+      prisma.mesPago.groupBy({ by: ["estado"], _count: { _all: true } }).catch((e) => { console.error("[dashboard] mesPago.groupBy:", e); throw e; }),
       prisma.horario.findMany({
         where: { activo: true },
         include: {
           curso: { select: { id: true, nombre: true } },
           _count: { select: { matriculas: { where: { estado: "activa" } } } },
         },
-      }),
+      }).catch((e) => { console.error("[dashboard] horario.findMany:", e); throw e; }),
     ]);
 
     // Build last-6-months ingresos
@@ -97,7 +97,7 @@ const getDashboardData = unstable_cache(
     const estadosPago: EstadoPagoData[] = estadosPagoRaw.map((e) => ({
       estado: e.estado,
       label: ESTADO_LABELS[e.estado] ?? e.estado,
-      count: e._count.id,
+      count: e._count._all,
     }));
 
     // Matrículas por curso
