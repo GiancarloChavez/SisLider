@@ -157,10 +157,22 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   if (process.env.NEXT_PHASE === "phase-production-build") return null;
-  const [data, horarios] = await Promise.all([
-    getDashboardData(),
-    getHorariosCalendario(),
-  ]);
+
+  let data, horarios;
+  try {
+    [data, horarios] = await Promise.all([
+      getDashboardData(),
+      getHorariosCalendario(),
+    ]);
+  } catch (err: unknown) {
+    const e = err as Record<string, unknown>;
+    console.error("DASHBOARD_ERR_TYPE:", e?.constructor?.name ?? typeof err);
+    console.error("DASHBOARD_ERR_MSG:", e?.message ?? String(err));
+    console.error("DASHBOARD_ERR_CODE:", e?.errorCode ?? e?.code ?? "n/a");
+    console.error("DASHBOARD_ERR_META:", JSON.stringify(e?.meta ?? {}));
+    console.error("DASHBOARD_ERR_STACK:", e?.stack ?? "");
+    throw err;
+  }
 
   const { kpis, ingresosPorMes, estadosPago, matriculasPorCurso, mesesPendientes } = data;
 
