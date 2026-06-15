@@ -158,19 +158,10 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   if (process.env.NEXT_PHASE === "phase-production-build") return null;
 
-  let data, horarios;
-  try {
-    [data, horarios] = await Promise.all([
-      getDashboardData(),
-      getHorariosCalendario(),
-    ]);
-  } catch (err: unknown) {
-    const e = err as Record<string, unknown>;
-    console.error("DBG name=" + String(e?.name ?? e?.constructor?.name ?? "?"));
-    console.error("DBG code=" + String(e?.errorCode ?? e?.code ?? "none"));
-    console.error("DBG msg=" + String(e?.message ?? err).slice(0, 300));
-    throw err;
-  }
+  const [data, horarios] = await Promise.all([
+    getDashboardData(),
+    getHorariosCalendario(),
+  ]);
 
   const { kpis, ingresosPorMes, estadosPago, matriculasPorCurso, mesesPendientes } = data;
 
