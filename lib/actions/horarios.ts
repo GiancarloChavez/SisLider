@@ -38,8 +38,8 @@ export async function getHorarioSelectData(): Promise<HorarioSelectData> {
   hoy.setHours(0, 0, 0, 0);
   const [cursos, docentes, aulas] = await Promise.all([
     prisma.curso.findMany({
-      where: { activo: true, fechaInicio: { lte: hoy }, fechaFin: { gte: hoy } },
-      orderBy: { nombre: "asc" },
+      where: { activo: true, fechaFin: { gte: hoy } }, // Incluye próximos
+      orderBy: [{ fechaInicio: "asc" }, { nombre: "asc" }],
     }),
     prisma.docente.findMany({
       where: { activo: true },

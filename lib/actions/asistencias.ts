@@ -34,8 +34,17 @@ export type GuardarAsistenciaState = { error?: string; message?: string };
 // ─── Get active horarios ──────────────────────────────────────────────────────
 
 export async function getHorariosActivos(): Promise<HorarioAsistenciaOption[]> {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
   const horarios = await prisma.horario.findMany({
-    where: { activo: true },
+    where: {
+      activo: true,
+      curso: {
+        fechaInicio: { lte: hoy }, // Solo cursos ya aperturados
+        fechaFin: { gte: hoy },
+      },
+    },
     include: { curso: true, docente: true, aula: true, dias: true },
     orderBy: { horaInicio: "asc" },
   });

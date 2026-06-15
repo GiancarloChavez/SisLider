@@ -25,6 +25,8 @@ export type HorarioConCupo = {
   curso: { nombre: string; nivel: string | null; precioMensual: number };
   docente: { nombre: string; apellido: string };
   aula: { nombre: string };
+  cursoProximo: boolean;
+  cursoFechaInicio: string;
 };
 
 export type DescuentoOption = {
@@ -106,8 +108,7 @@ export async function getMatriculaFormData(): Promise<{
         activo: true,
         curso: {
           activo: true,
-          fechaInicio: { lte: hoy },
-          fechaFin: { gte: hoy },
+          fechaFin: { gte: hoy }, // Incluye próximos; excluye finalizados
         },
       },
       include: {
@@ -117,7 +118,7 @@ export async function getMatriculaFormData(): Promise<{
         dias: true,
         _count: { select: { matriculas: { where: { estado: "activa" } } } },
       },
-      orderBy: { curso: { nombre: "asc" } },
+      orderBy: [{ curso: { fechaInicio: "asc" } }, { curso: { nombre: "asc" } }],
     }),
     prisma.descuento.findMany({
       where: { activo: true },
@@ -139,6 +140,8 @@ export async function getMatriculaFormData(): Promise<{
     },
     docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
     aula: { nombre: h.aula.nombre },
+    cursoProximo: h.curso.fechaInicio > hoy,
+    cursoFechaInicio: h.curso.fechaInicio.toISOString().slice(0, 10),
   }));
 
   const descuentos: DescuentoOption[] = descuentosRaw.map((d) => ({
@@ -242,7 +245,9 @@ export async function createMatricula(
   }
 
   const now = new Date();
-  const ultimoDiaMes = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  // Si el curso aún no inicia, el primer pago corresponde al mes de apertura
+  const pagoRef = horario.curso.fechaInicio > now ? horario.curso.fechaInicio : now;
+  const ultimoDiaMes = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + 1, 0);
 
   const txResult = await prisma.$transaction(async (tx) => {
     const cupoOcupado = await tx.matricula.count({
@@ -266,8 +271,8 @@ export async function createMatricula(
     await tx.mesPago.create({
       data: {
         idMatricula: matricula.id,
-        anio: now.getFullYear(),
-        mes: now.getMonth() + 1,
+        anio: pagoRef.getFullYear(),
+        mes: pagoRef.getMonth() + 1,
         montoTotal: precioFinal,
         estado: "pendiente",
         fechaVencimiento: ultimoDiaMes,

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, CheckCircle2, Users, X } from "lucide-react";
+import { Search, CheckCircle2, Users, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   buscarAlumnos,
@@ -245,9 +245,17 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <p className="font-semibold text-zinc-900 text-sm leading-tight">
-                        {h.curso.nombre}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-zinc-900 text-sm leading-tight">
+                          {h.curso.nombre}
+                        </p>
+                        {h.cursoProximo && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0 text-[10px] font-semibold text-blue-600">
+                            <Clock className="h-2.5 w-2.5" />
+                            Próximo
+                          </span>
+                        )}
+                      </div>
                       {h.curso.nivel && (
                         <p className="text-xs text-zinc-400">{h.curso.nivel}</p>
                       )}
@@ -271,6 +279,15 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                       {h.horaInicio}–{h.horaFin}
                     </span>
                   </div>
+
+                  {h.cursoProximo && (
+                    <p className="text-xs text-blue-600 font-medium mb-2">
+                      Apertura:{" "}
+                      {new Date(h.cursoFechaInicio + "T00:00:00").toLocaleDateString("es-PE", {
+                        day: "numeric", month: "long", year: "numeric",
+                      })}
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
                     <span className="text-sm font-bold text-zinc-900">
