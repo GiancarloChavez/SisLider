@@ -256,13 +256,13 @@ async function crearUsuarios() {
 async function crearInfraestructura() {
   await prisma.docente.createMany({
     data: [
-      { id: IDS.d1, nombre: "Valentina", apellido: "Ríos Sandoval",    celular: "987123001", especialidad: "Modelaje y Pasarela", activo: true },
-      { id: IDS.d2, nombre: "Diego",     apellido: "Paredes Luna",     celular: "987123002", especialidad: "Fotografía Digital",  activo: true },
-      { id: IDS.d3, nombre: "Roberto",   apellido: "Huanca Quispe",    celular: "987123003", especialidad: "Ajedrez Competitivo", activo: true },
-      { id: IDS.d4, nombre: "Andrea",    apellido: "Lazo Mendoza",     celular: "987123004", especialidad: "Oratoria y Debate",   activo: true },
-      { id: IDS.d5, nombre: "Patricia",  apellido: "Torres Mamani",    celular: "987123005", especialidad: "Pintura y Bellas Artes", activo: true },
-      { id: IDS.d6, nombre: "Felipe",    apellido: "Mendoza Arce",     celular: "987123006", especialidad: "Violín y Música Clásica", activo: true },
-      { id: IDS.d7, nombre: "Sergio",    apellido: "Castro Villanueva",celular: "987123007", especialidad: "Edición de Video y Motion", activo: true },
+      { id: IDS.d1, nombre: "Valentina", apellido: "Ríos Sandoval",    celular: "987123001", activo: true },
+      { id: IDS.d2, nombre: "Diego",     apellido: "Paredes Luna",     celular: "987123002", activo: true },
+      { id: IDS.d3, nombre: "Roberto",   apellido: "Huanca Quispe",    celular: "987123003", activo: true },
+      { id: IDS.d4, nombre: "Andrea",    apellido: "Lazo Mendoza",     celular: "987123004", activo: true },
+      { id: IDS.d5, nombre: "Patricia",  apellido: "Torres Mamani",    celular: "987123005", activo: true },
+      { id: IDS.d6, nombre: "Felipe",    apellido: "Mendoza Arce",     celular: "987123006", activo: true },
+      { id: IDS.d7, nombre: "Sergio",    apellido: "Castro Villanueva",celular: "987123007", activo: true },
     ],
   });
 
@@ -297,26 +297,26 @@ async function crearInfraestructura() {
 async function crearHorarios() {
   const horarios = [
     // Modelaje
-    { id: IDS.h1,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, horaInicio: time(9,0),  horaFin: time(12,0), cupoMaximo: 20, dias: ["Sábado"] },
-    { id: IDS.h2,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, horaInicio: time(19,0), horaFin: time(21,0), cupoMaximo: 18, dias: ["Miércoles", "Viernes"] },
+    { id: IDS.h1,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, horaInicio: time(9,0),  horaFin: time(12,0), dias: ["Sábado"] },
+    { id: IDS.h2,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, horaInicio: time(19,0), horaFin: time(21,0), dias: ["Miércoles", "Viernes"] },
     // Fotografía
-    { id: IDS.h3,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, horaInicio: time(10,0), horaFin: time(13,0), cupoMaximo: 12, dias: ["Sábado"] },
-    { id: IDS.h4,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, horaInicio: time(19,0),  horaFin: time(21,0),  cupoMaximo: 12, dias: ["Martes", "Jueves"] },
+    { id: IDS.h3,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, horaInicio: time(10,0), horaFin: time(13,0), dias: ["Sábado"] },
+    { id: IDS.h4,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, horaInicio: time(19,0),  horaFin: time(21,0),  dias: ["Martes", "Jueves"] },
     // Ajedrez
-    { id: IDS.h5,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, horaInicio: time(16,0), horaFin: time(17,30), cupoMaximo: 20, dias: ["Lunes", "Miércoles"] },
-    { id: IDS.h6,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, horaInicio: time(8,0),  horaFin: time(10,0), cupoMaximo: 16, dias: ["Sábado"] },
+    { id: IDS.h5,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, horaInicio: time(16,0), horaFin: time(17,30), dias: ["Lunes", "Miércoles"] },
+    { id: IDS.h6,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, horaInicio: time(8,0),  horaFin: time(10,0), dias: ["Sábado"] },
     // Oratoria
-    { id: IDS.h7,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, horaInicio: time(9,0),  horaFin: time(10,30), cupoMaximo: 25, dias: ["Martes", "Jueves", "Sábado"] },
-    { id: IDS.h8,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, horaInicio: time(19,30), horaFin: time(21,0),  cupoMaximo: 25, dias: ["Lunes", "Miércoles", "Viernes"] },
+    { id: IDS.h7,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, horaInicio: time(9,0),  horaFin: time(10,30), dias: ["Martes", "Jueves", "Sábado"] },
+    { id: IDS.h8,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, horaInicio: time(19,30), horaFin: time(21,0),  dias: ["Lunes", "Miércoles", "Viernes"] },
     // Pintura
-    { id: IDS.h9,  idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, horaInicio: time(15,0), horaFin: time(18,0),  cupoMaximo: 18, dias: ["Sábado"] },
-    { id: IDS.h10, idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, horaInicio: time(17,0), horaFin: time(19,0), cupoMaximo: 18, dias: ["Martes", "Jueves"] },
+    { id: IDS.h9,  idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, horaInicio: time(15,0), horaFin: time(18,0),  dias: ["Sábado"] },
+    { id: IDS.h10, idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, horaInicio: time(17,0), horaFin: time(19,0), dias: ["Martes", "Jueves"] },
     // Violín
-    { id: IDS.h11, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, horaInicio: time(8,0),  horaFin: time(9,0),  cupoMaximo: 10, dias: ["Lunes", "Miércoles", "Viernes"] },
-    { id: IDS.h12, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, horaInicio: time(18,0), horaFin: time(20,0), cupoMaximo: 10, dias: ["Martes", "Jueves"] },
+    { id: IDS.h11, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, horaInicio: time(8,0),  horaFin: time(9,0),  dias: ["Lunes", "Miércoles", "Viernes"] },
+    { id: IDS.h12, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, horaInicio: time(18,0), horaFin: time(20,0), dias: ["Martes", "Jueves"] },
     // Edición de Video
-    { id: IDS.h13, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, horaInicio: time(15,0), horaFin: time(18,0), cupoMaximo: 16, dias: ["Sábado"] },
-    { id: IDS.h14, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, horaInicio: time(18,0), horaFin: time(21,0),  cupoMaximo: 16, dias: ["Lunes", "Viernes"] },
+    { id: IDS.h13, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, horaInicio: time(15,0), horaFin: time(18,0), dias: ["Sábado"] },
+    { id: IDS.h14, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, horaInicio: time(18,0), horaFin: time(21,0),  dias: ["Lunes", "Viernes"] },
   ];
 
   for (const h of horarios) {
