@@ -224,7 +224,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {horarios.map((h) => {
-              const libre = h.cupoMaximo - h.cupoOcupado;
+              const libre = h.aula.capacidad - h.cupoOcupado;
               const disponible = libre > 0;
               const selected = horario?.id === h.id;
 
@@ -300,7 +300,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                       )}
                     >
                       <Users className="h-3 w-3" />
-                      {libre}/{h.cupoMaximo} libres
+                      {libre}/{h.aula.capacidad} libres
                     </span>
                   </div>
                 </button>

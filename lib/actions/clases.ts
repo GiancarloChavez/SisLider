@@ -10,11 +10,10 @@ export type HorarioCalendario = {
   horaInicio: string;
   horaFin: string;
   dias: string[];
-  cupoMaximo: number;
   cupoOcupado: number;
   curso: { id: string; nombre: string; nivel: string | null };
   docente: { nombre: string; apellido: string };
-  aula: { nombre: string };
+  aula: { nombre: string; capacidad: number };
 };
 
 export const getHorariosCalendario = unstable_cache(
@@ -45,11 +44,10 @@ export const getHorariosCalendario = unstable_cache(
       horaInicio: h.horaInicio.toISOString().slice(11, 16),
       horaFin: h.horaFin.toISOString().slice(11, 16),
       dias: h.dias.map((d) => d.dia),
-      cupoMaximo: h.cupoMaximo,
       cupoOcupado: countMap[h.id] ?? 0,
       curso: { id: h.curso.id, nombre: h.curso.nombre, nivel: h.curso.nivel },
       docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
-      aula: { nombre: h.aula.nombre },
+      aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
     }));
   },
   ["horarios-calendario"],
@@ -64,8 +62,7 @@ export type HorarioResumen = {
   horaFin: string;
   dias: string[];
   docente: { nombre: string; apellido: string };
-  aula: { nombre: string };
-  cupoMaximo: number;
+  aula: { nombre: string; capacidad: number };
   alumnosHabilitados: number;
   alumnosTotales: number;
 };
@@ -122,8 +119,7 @@ export const getCursosConHorarios = unstable_cache(
         horaFin: h.horaFin.toISOString().slice(11, 16),
         dias: h.dias.map((d) => d.dia),
         docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
-        aula: { nombre: h.aula.nombre },
-        cupoMaximo: h.cupoMaximo,
+        aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
         alumnosHabilitados: habMap[h.id] ?? 0,
         alumnosTotales: totalMap[h.id] ?? 0,
       })),

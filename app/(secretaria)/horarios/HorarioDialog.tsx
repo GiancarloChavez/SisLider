@@ -279,20 +279,6 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="cupoMaximo">Cupo máximo *</Label>
-            <Input
-              id="cupoMaximo"
-              name="cupoMaximo"
-              type="number"
-              min="1"
-              defaultValue={horario?.cupoMaximo ?? 20}
-            />
-            {state.errors?.cupoMaximo && (
-              <p className="text-xs text-destructive">{state.errors.cupoMaximo[0]}</p>
-            )}
-          </div>
-
           <div className="space-y-2">
             <Label>Días *</Label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">

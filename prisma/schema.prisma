@@ -65,13 +65,12 @@ model TutorAlumno {
 }
 
 model Docente {
-  id           String   @id @default(uuid())
-  nombre       String   @db.VarChar(100)
-  apellido     String   @db.VarChar(100)
-  celular      String?  @db.VarChar(20)
-  especialidad String?  @db.VarChar(100)
-  activo       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  nombre    String   @db.VarChar(100)
+  apellido  String   @db.VarChar(100)
+  celular   String?  @db.VarChar(20)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
 
   horarios Horario[]
 
@@ -111,7 +110,6 @@ model Horario {
   idAula     String   @map("id_aula")
   horaInicio DateTime @map("hora_inicio") @db.Time
   horaFin    DateTime @map("hora_fin") @db.Time
-  cupoMaximo Int      @default(20) @map("cupo_maximo")
   activo     Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 

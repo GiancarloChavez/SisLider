@@ -11,12 +11,11 @@ export type HorarioSerialized = {
   idAula: string;
   horaInicio: string;
   horaFin: string;
-  cupoMaximo: number;
   activo: boolean;
   createdAt: string;
   curso: { nombre: string; nivel: string | null };
   docente: { nombre: string; apellido: string };
-  aula: { nombre: string };
+  aula: { nombre: string; capacidad: number };
   dias: string[];
 };
 
@@ -64,7 +63,6 @@ const horarioSchema = z
     idAula: z.string().min(1, "Selecciona un aula"),
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
     horaFin: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
-    cupoMaximo: z.coerce.number().int().positive("El cupo debe ser mayor a 0"),
     dias: z.array(z.string()).min(1, "Selecciona al menos un día"),
   })
   .refine((d) => d.horaFin > d.horaInicio, {
@@ -86,7 +84,6 @@ export async function createHorario(
     idAula: formData.get("idAula"),
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
-    cupoMaximo: formData.get("cupoMaximo"),
     dias: formData.getAll("dia"),
   });
 
@@ -118,7 +115,6 @@ export async function updateHorario(
     idAula: formData.get("idAula"),
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
-    cupoMaximo: formData.get("cupoMaximo"),
     dias: formData.getAll("dia"),
   });
 

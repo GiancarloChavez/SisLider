@@ -40,8 +40,7 @@ export function DocentesTable({ docentes }: Props) {
     return docentes.filter(
       (d) =>
         d.nombre.toLowerCase().includes(q) ||
-        d.apellido.toLowerCase().includes(q) ||
-        (d.especialidad ?? "").toLowerCase().includes(q)
+        d.apellido.toLowerCase().includes(q)
     );
   }, [docentes, search]);
 
@@ -84,7 +83,7 @@ export function DocentesTable({ docentes }: Props) {
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
             <Input
-              placeholder="Buscar por nombre o especialidad..."
+              placeholder="Buscar por nombre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 text-sm bg-zinc-50 border-zinc-200"
@@ -101,7 +100,6 @@ export function DocentesTable({ docentes }: Props) {
           <TableHeader>
             <TableRow className="bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="font-semibold text-zinc-600">Apellidos y nombre</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Especialidad</TableHead>
               <TableHead className="font-semibold text-zinc-600">Celular</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
               <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
@@ -110,7 +108,7 @@ export function DocentesTable({ docentes }: Props) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={4}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <UserCheck className="h-7 w-7 text-zinc-300" />
@@ -131,9 +129,6 @@ export function DocentesTable({ docentes }: Props) {
                 <TableRow key={d.id} className="transition-colors duration-100 hover:bg-zinc-50/70">
                   <TableCell>
                     <p className="font-medium text-zinc-900">{d.apellido}, {d.nombre}</p>
-                  </TableCell>
-                  <TableCell className="text-zinc-500">
-                    {d.especialidad ?? <span className="text-zinc-300">—</span>}
                   </TableCell>
                   <TableCell className="font-mono text-sm text-zinc-500">
                     {d.celular ?? <span className="text-zinc-300 font-sans">—</span>}

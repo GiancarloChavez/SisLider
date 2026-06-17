@@ -19,12 +19,11 @@ export type HorarioConCupo = {
   id: string;
   horaInicio: string;
   horaFin: string;
-  cupoMaximo: number;
   cupoOcupado: number;
   dias: string[];
   curso: { nombre: string; nivel: string | null; precioMensual: number };
   docente: { nombre: string; apellido: string };
-  aula: { nombre: string };
+  aula: { nombre: string; capacidad: number };
   cursoProximo: boolean;
   cursoFechaInicio: string;
 };
@@ -51,10 +50,9 @@ export type CursoConMatriculas = {
     dias: string[];
     horaInicio: string;
     horaFin: string;
-    cupoMaximo: number;
     alumnosActivos: number;
     docente: { nombre: string; apellido: string };
-    aula: { nombre: string };
+    aula: { nombre: string; capacidad: number };
   }[];
 };
 
@@ -130,7 +128,6 @@ export async function getMatriculaFormData(): Promise<{
     id: h.id,
     horaInicio: h.horaInicio.toISOString().slice(11, 16),
     horaFin: h.horaFin.toISOString().slice(11, 16),
-    cupoMaximo: h.cupoMaximo,
     cupoOcupado: h._count.matriculas,
     dias: h.dias.map((d) => d.dia),
     curso: {
@@ -139,7 +136,7 @@ export async function getMatriculaFormData(): Promise<{
       precioMensual: Number(h.curso.precioMensual),
     },
     docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
-    aula: { nombre: h.aula.nombre },
+    aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
     cursoProximo: h.curso.fechaInicio > hoy,
     cursoFechaInicio: h.curso.fechaInicio.toISOString().slice(0, 10),
   }));
@@ -180,16 +177,15 @@ export async function getCursosConMatriculas(): Promise<CursoConMatriculas[]> {
     fechaFin: c.fechaFin.toISOString().slice(0, 10),
     activo: c.activo,
     totalAlumnos: c.horarios.reduce((s, h) => s + h._count.matriculas, 0),
-    cupoTotal: c.horarios.reduce((s, h) => s + h.cupoMaximo, 0),
+    cupoTotal: c.horarios.reduce((s, h) => s + h.aula.capacidad, 0),
     horarios: c.horarios.map((h) => ({
       id: h.id,
       dias: h.dias.map((d) => d.dia),
       horaInicio: h.horaInicio.toISOString().slice(11, 16),
       horaFin: h.horaFin.toISOString().slice(11, 16),
-      cupoMaximo: h.cupoMaximo,
       alumnosActivos: h._count.matriculas,
       docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
-      aula: { nombre: h.aula.nombre },
+      aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
     })),
   }));
 }
@@ -222,7 +218,7 @@ export async function createMatricula(
 
   const horario = await prisma.horario.findUnique({
     where: { id: idHorario },
-    include: { curso: true },
+    include: { curso: true, aula: true },
   });
   if (!horario) return { errors: { idHorario: ["Horario no encontrado"] } };
 
@@ -253,7 +249,7 @@ export async function createMatricula(
     const cupoOcupado = await tx.matricula.count({
       where: { idHorario, estado: "activa" },
     });
-    if (cupoOcupado >= horario.cupoMaximo) {
+    if (cupoOcupado >= horario.aula.capacidad) {
       return "CUPO_LLENO" as const;
     }
 

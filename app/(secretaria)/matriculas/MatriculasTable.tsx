@@ -220,9 +220,9 @@ export function MatriculasTable({ cursos }: Props) {
                           <TableCell>
                             <span className={cn(
                               "text-xs font-medium",
-                              h.alumnosActivos < h.cupoMaximo ? "text-green-600" : "text-red-500"
+                              h.alumnosActivos < h.aula.capacidad ? "text-green-600" : "text-red-500"
                             )}>
-                              {h.alumnosActivos}/{h.cupoMaximo} inscritos
+                              {h.alumnosActivos}/{h.aula.capacidad} inscritos
                             </span>
                           </TableCell>
                           <TableCell colSpan={2} />

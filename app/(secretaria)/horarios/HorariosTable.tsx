@@ -183,7 +183,7 @@ export function HorariosTable({ horarios, selectData }: Props) {
                   </TableCell>
                   <TableCell className="text-center">
                     <span className="inline-flex items-center justify-center rounded-full bg-zinc-100 text-zinc-700 text-xs font-semibold w-8 h-8">
-                      {h.cupoMaximo}
+                      {h.aula.capacidad}
                     </span>
                   </TableCell>
                   <TableCell><StatusPill active={h.activo} /></TableCell>

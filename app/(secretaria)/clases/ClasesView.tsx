@@ -271,7 +271,7 @@ export function ClasesView({ cursos, initialCursoId, initialHorarioId }: Props) 
                 .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))
                 .map((d) => DIA_ABREV[d] ?? d)
                 .join("/");
-              const libre = h.cupoMaximo - h.alumnosTotales;
+              const libre = h.aula.capacidad - h.alumnosTotales;
               return (
                 <li key={h.id}>
                   <button
@@ -291,7 +291,7 @@ export function ClasesView({ cursos, initialCursoId, initialHorarioId }: Props) 
                           ? "bg-zinc-800 text-zinc-300 border-zinc-700"
                           : "bg-zinc-50 text-zinc-500 border-zinc-200"
                       )}>
-                        {h.alumnosHabilitados} / {h.cupoMaximo}
+                        {h.alumnosHabilitados} / {h.aula.capacidad}
                       </span>
                     </div>
                     <p className={cn("text-xs", active ? "text-zinc-300" : "text-zinc-500")}>

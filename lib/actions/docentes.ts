@@ -9,7 +9,6 @@ export type DocenteSerialized = {
   nombre: string;
   apellido: string;
   celular: string | null;
-  especialidad: string | null;
   activo: boolean;
   createdAt: string;
 };
@@ -23,7 +22,6 @@ const docenteSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido").max(100),
   apellido: z.string().min(1, "El apellido es requerido").max(100),
   celular: z.string().max(20).optional(),
-  especialidad: z.string().max(100).optional(),
 });
 
 export async function createDocente(
@@ -34,7 +32,6 @@ export async function createDocente(
     nombre: formData.get("nombre"),
     apellido: formData.get("apellido"),
     celular: formData.get("celular") || undefined,
-    especialidad: formData.get("especialidad") || undefined,
   });
 
   if (!parsed.success) {
@@ -55,7 +52,6 @@ export async function updateDocente(
     nombre: formData.get("nombre"),
     apellido: formData.get("apellido"),
     celular: formData.get("celular") || undefined,
-    especialidad: formData.get("especialidad") || undefined,
   });
 
   if (!parsed.success) {

@@ -16,12 +16,11 @@ const getHorarios = unstable_cache(
       idAula: h.idAula,
       horaInicio: h.horaInicio.toISOString().slice(11, 16),
       horaFin: h.horaFin.toISOString().slice(11, 16),
-      cupoMaximo: h.cupoMaximo,
       activo: h.activo,
       createdAt: h.createdAt.toISOString(),
       curso: { nombre: h.curso.nombre, nivel: h.curso.nivel },
       docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
-      aula: { nombre: h.aula.nombre },
+      aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
       dias: h.dias.map((d) => d.dia),
     }));
   },

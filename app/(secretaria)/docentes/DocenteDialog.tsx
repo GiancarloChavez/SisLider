@@ -76,19 +76,6 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="especialidad">Especialidad</Label>
-            <Input
-              id="especialidad"
-              name="especialidad"
-              defaultValue={docente?.especialidad ?? ""}
-              placeholder="Ej: Matemáticas, Inglés, Piano"
-            />
-            {state.errors?.especialidad && (
-              <p className="text-xs text-destructive">{state.errors.especialidad[0]}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
             <Label htmlFor="celular">Celular</Label>
             <Input
               id="celular"
