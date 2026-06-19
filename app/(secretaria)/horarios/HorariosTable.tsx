@@ -126,7 +126,6 @@ export function HorariosTable({ horarios, selectData }: Props) {
               <TableHead className="font-semibold text-zinc-600">Aula</TableHead>
               <TableHead className="font-semibold text-zinc-600">Días</TableHead>
               <TableHead className="font-semibold text-zinc-600">Horario</TableHead>
-              <TableHead className="font-semibold text-zinc-600 text-center">Cupo</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
               <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
             </TableRow>
@@ -134,7 +133,7 @@ export function HorariosTable({ horarios, selectData }: Props) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8}>
+                <TableCell colSpan={7}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <CalendarDays className="h-7 w-7 text-zinc-300" />
@@ -180,11 +179,6 @@ export function HorariosTable({ horarios, selectData }: Props) {
                   </TableCell>
                   <TableCell className="font-mono text-sm text-zinc-700 whitespace-nowrap">
                     {h.horaInicio}–{h.horaFin}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="inline-flex items-center justify-center rounded-full bg-zinc-100 text-zinc-700 text-xs font-semibold w-8 h-8">
-                      {h.aula.capacidad}
-                    </span>
                   </TableCell>
                   <TableCell><StatusPill active={h.activo} /></TableCell>
                   <TableCell className="text-right">
