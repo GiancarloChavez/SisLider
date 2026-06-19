@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -245,16 +246,18 @@ export async function createMatricula(
   const pagoRef = horario.curso.fechaInicio > now ? horario.curso.fechaInicio : now;
   const ultimoDiaMes = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + 1, 0);
 
-  const txResult = await prisma.$transaction(async (tx) => {
-    const cupoOcupado = await tx.matricula.count({
-      where: { idHorario, estado: "activa" },
-    });
-    if (cupoOcupado >= horario.aula.capacidad) {
-      return "CUPO_LLENO" as const;
-    }
+  const cupoOcupado = await prisma.matricula.count({
+    where: { idHorario, estado: "activa" },
+  });
+  if (cupoOcupado >= horario.aula.capacidad) {
+    return { errors: { idHorario: ["El horario no tiene cupo disponible"] } };
+  }
 
-    const matricula = await tx.matricula.create({
+  const matriculaId = randomUUID();
+  await prisma.$transaction([
+    prisma.matricula.create({
       data: {
+        id: matriculaId,
         idAlumno,
         idHorario,
         idDescuento: idDescuento ?? null,
@@ -262,26 +265,19 @@ export async function createMatricula(
         estado: "activa",
         dias: { create: dias.map((dia) => ({ dia })) },
       },
-    });
-
-    await tx.mesPago.create({
+    }),
+    prisma.mesPago.create({
       data: {
-        idMatricula: matricula.id,
+        idMatricula: matriculaId,
         anio: pagoRef.getFullYear(),
         mes: pagoRef.getMonth() + 1,
         montoTotal: precioFinal,
         estado: "pendiente",
         fechaVencimiento: ultimoDiaMes,
       },
-    });
-
-    await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: true } });
-    return "ok" as const;
-  });
-
-  if (txResult === "CUPO_LLENO") {
-    return { errors: { idHorario: ["El horario no tiene cupo disponible"] } };
-  }
+    }),
+    prisma.alumno.update({ where: { id: idAlumno }, data: { habilitado: true } }),
+  ]);
 
   revalidateTag("matriculas");
   revalidateTag("alumnos");
@@ -300,20 +296,39 @@ export async function toggleMatriculaEstado(id: string, estado: string) {
   });
   if (!matricula) return;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.matricula.update({ where: { id }, data: { estado: nuevo } });
-
-    const pendientes = await tx.mesPago.count({
+  // Compute habilitado before the batch transaction.
+  // For "inactiva": exclude this matricula (not yet deactivated in DB).
+  // For "activa": include this matricula's own pending months (not yet active in DB).
+  let pendientes: number;
+  if (nuevo === "inactiva") {
+    pendientes = await prisma.mesPago.count({
       where: {
-        matricula: { idAlumno: matricula.idAlumno, estado: "activa" },
+        matricula: { idAlumno: matricula.idAlumno, estado: "activa", id: { not: id } },
         estado: { in: ["pendiente", "parcial"] },
       },
     });
-    await tx.alumno.update({
+  } else {
+    const [deOtras, deEsta] = await Promise.all([
+      prisma.mesPago.count({
+        where: {
+          matricula: { idAlumno: matricula.idAlumno, estado: "activa" },
+          estado: { in: ["pendiente", "parcial"] },
+        },
+      }),
+      prisma.mesPago.count({
+        where: { idMatricula: id, estado: { in: ["pendiente", "parcial"] } },
+      }),
+    ]);
+    pendientes = deOtras + deEsta;
+  }
+
+  await prisma.$transaction([
+    prisma.matricula.update({ where: { id }, data: { estado: nuevo } }),
+    prisma.alumno.update({
       where: { id: matricula.idAlumno },
       data: { habilitado: pendientes === 0 },
-    });
-  });
+    }),
+  ]);
 
   revalidateTag("matriculas");
   revalidateTag("alumnos");

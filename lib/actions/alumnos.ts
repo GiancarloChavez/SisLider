@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -76,9 +77,13 @@ export async function createAlumno(
 
   const alumnoData = parsedAlumno.data!;
 
-  await prisma.$transaction(async (tx) => {
-    const alumno = await tx.alumno.create({
+  const alumnoId = randomUUID();
+  const tutorId = tieneApoderado && apoderado ? randomUUID() : null;
+
+  await prisma.$transaction([
+    prisma.alumno.create({
       data: {
+        id: alumnoId,
         nombre: alumnoData.nombre,
         apellido: alumnoData.apellido,
         dni: alumnoData.dni || null,
@@ -87,23 +92,25 @@ export async function createAlumno(
           ? new Date(alumnoData.fechaNacimiento)
           : null,
       },
-    });
-
-    if (tieneApoderado && apoderado) {
-      const tutor = await tx.tutor.create({
-        data: {
-          nombre: apoderado.tutorNombre,
-          apellido: apoderado.tutorApellido,
-          celular: apoderado.tutorCelular,
-          celularAdicional: apoderado.tutorCelularAdicional || null,
-          relacion: apoderado.tutorRelacion,
-        },
-      });
-      await tx.tutorAlumno.create({
-        data: { idTutor: tutor.id, idAlumno: alumno.id, esPrincipal: true },
-      });
-    }
-  });
+    }),
+    ...(tieneApoderado && apoderado && tutorId
+      ? [
+          prisma.tutor.create({
+            data: {
+              id: tutorId,
+              nombre: apoderado.tutorNombre,
+              apellido: apoderado.tutorApellido,
+              celular: apoderado.tutorCelular,
+              celularAdicional: apoderado.tutorCelularAdicional || null,
+              relacion: apoderado.tutorRelacion,
+            },
+          }),
+          prisma.tutorAlumno.create({
+            data: { idTutor: tutorId, idAlumno: alumnoId, esPrincipal: true },
+          }),
+        ]
+      : []),
+  ]);
 
   revalidateTag("alumnos");
   return { message: "ok" };

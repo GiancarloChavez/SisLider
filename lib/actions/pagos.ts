@@ -232,9 +232,21 @@ export async function registrarAbono(
   const nuevoMontoPagado = Number(mesPago.montoPagado) + monto;
   const nuevoEstado = nuevoMontoPagado >= Number(mesPago.montoTotal) - 0.01 ? "pagado" : "parcial";
 
+  // Count other pending/parcial months for this student (excluding the current one).
+  // PgBouncer transaction-mode pooler doesn't support interactive $transaction callbacks,
+  // so we compute habilitado before the batch transaction.
+  const otrosPendientes = await prisma.mesPago.count({
+    where: {
+      id: { not: idMesPago },
+      matricula: { idAlumno, estado: "activa" },
+      estado: { in: ["pendiente", "parcial"] },
+    },
+  });
+  const habilitado = nuevoEstado === "pagado" && otrosPendientes === 0;
+
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.abono.create({
+    await prisma.$transaction([
+      prisma.abono.create({
         data: {
           idMesPago,
           idUsuario,
@@ -242,22 +254,18 @@ export async function registrarAbono(
           metodoPago,
           observacion: observacion ?? null,
         },
-      });
-
-      await tx.mesPago.update({
+      }),
+      prisma.mesPago.update({
         where: { id: idMesPago },
         data: { montoPagado: nuevoMontoPagado, estado: nuevoEstado },
-      });
-
-      const pendientesTotal = await tx.mesPago.count({
-        where: {
-          matricula: { idAlumno, estado: "activa" },
-          estado: { in: ["pendiente", "parcial"] },
-        },
-      });
-      await tx.alumno.update({ where: { id: idAlumno }, data: { habilitado: pendientesTotal === 0 } });
-    });
-  } catch {
+      }),
+      prisma.alumno.update({
+        where: { id: idAlumno },
+        data: { habilitado },
+      }),
+    ]);
+  } catch (e) {
+    console.error("[registrarAbono]", e);
     return { errors: { _: ["Error al registrar el abono. Intenta nuevamente."] } };
   }
 
@@ -314,22 +322,23 @@ export async function anularMesPago(idMesPago: string): Promise<{ error?: string
 
   const idAlumno = mesPago.matricula.idAlumno;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.abono.deleteMany({ where: { idMesPago } });
-    await tx.mesPago.delete({ where: { id: idMesPago } });
+  // Compute remaining pending months excluding the one being deleted
+  const pendientesTotal = await prisma.mesPago.count({
+    where: {
+      id: { not: idMesPago },
+      matricula: { idAlumno, estado: "activa" },
+      estado: { in: ["pendiente", "parcial"] },
+    },
+  });
 
-    // Recalcular habilitado sobre todos los meses restantes
-    const pendientesTotal = await tx.mesPago.count({
-      where: {
-        matricula: { idAlumno, estado: "activa" },
-        estado: { in: ["pendiente", "parcial"] },
-      },
-    });
-    await tx.alumno.update({
+  await prisma.$transaction([
+    prisma.abono.deleteMany({ where: { idMesPago } }),
+    prisma.mesPago.delete({ where: { id: idMesPago } }),
+    prisma.alumno.update({
       where: { id: idAlumno },
       data: { habilitado: pendientesTotal === 0 },
-    });
-  });
+    }),
+  ]);
 
   revalidateTag("pagos");
   revalidateTag("alumnos");
