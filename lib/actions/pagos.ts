@@ -200,13 +200,9 @@ export async function registrarAbono(
   formData: FormData
 ): Promise<AbonoFormState> {
   const session = await auth();
-  if (!session?.user?.email) return { errors: { _: ["No autenticado"] } };
+  if (!session?.user?.id) return { errors: { _: ["No autenticado"] } };
 
-  const usuario = await prisma.usuario.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!usuario) return { errors: { _: ["Usuario no encontrado. Cierra sesión e ingresa nuevamente."] } };
+  const idUsuario = session.user.id;
 
   const parsed = abonoSchema.safeParse({
     idMesPago: formData.get("idMesPago"),
@@ -241,7 +237,7 @@ export async function registrarAbono(
       await tx.abono.create({
         data: {
           idMesPago,
-          idUsuario: usuario.id,
+          idUsuario,
           monto,
           metodoPago,
           observacion: observacion ?? null,
