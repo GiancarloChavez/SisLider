@@ -204,6 +204,11 @@ export async function registrarAbono(
 
   const idUsuario = session.user.id;
 
+  const usuarioExiste = await prisma.usuario.count({ where: { id: idUsuario } });
+  if (!usuarioExiste) {
+    return { errors: { _: ["Sesión caducada. Cierra sesión e inicia sesión nuevamente."] } };
+  }
+
   const parsed = abonoSchema.safeParse({
     idMesPago: formData.get("idMesPago"),
     monto: formData.get("monto"),
