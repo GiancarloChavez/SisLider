@@ -21,6 +21,7 @@ import {
   Tag,
   School,
   FileBarChart,
+  RefreshCcw,
 } from "lucide-react";
 
 const navGroups = [
@@ -35,7 +36,8 @@ const navGroups = [
       { href: "/horarios", label: "Horarios", icon: CalendarDays },
       { href: "/clases", label: "Clases", icon: School },
       { href: "/matriculas", label: "Matrículas", icon: ClipboardList },
-      { href: "/asistencias", label: "Asistencias", icon: CheckSquare },
+      { href: "/asistencias",    label: "Asistencias",    icon: CheckSquare },
+      { href: "/recuperaciones", label: "Recuperaciones", icon: RefreshCcw },
     ],
   },
   {

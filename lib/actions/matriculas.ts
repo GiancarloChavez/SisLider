@@ -235,7 +235,7 @@ export async function createMatricula(
     const descuento = await prisma.descuento.findUnique({ where: { id: idDescuento } });
     if (descuento) {
       precioFinal =
-        descuento.tipo === "porcentaje"
+        descuento.tipo.toLowerCase() === "porcentaje"
           ? precioFinal * (1 - Number(descuento.valor) / 100)
           : Math.max(0, precioFinal - Number(descuento.valor));
     }
@@ -323,7 +323,13 @@ export async function toggleMatriculaEstado(id: string, estado: string) {
   }
 
   await prisma.$transaction([
-    prisma.matricula.update({ where: { id }, data: { estado: nuevo } }),
+    prisma.matricula.update({
+      where: { id },
+      data: {
+        estado: nuevo,
+        fechaFin: nuevo === "inactiva" ? new Date() : null,
+      },
+    }),
     prisma.alumno.update({
       where: { id: matricula.idAlumno },
       data: { habilitado: pendientes === 0 },
