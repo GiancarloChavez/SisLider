@@ -20,6 +20,7 @@ import {
   PinOff,
   Tag,
   School,
+  FileBarChart,
 } from "lucide-react";
 
 const navGroups = [
@@ -42,6 +43,7 @@ const navGroups = [
     items: [
       { href: "/pagos", label: "Pagos", icon: CreditCard },
       { href: "/descuentos", label: "Descuentos", icon: Tag },
+      { href: "/reportes", label: "Reportes", icon: FileBarChart },
     ],
   },
 ];
