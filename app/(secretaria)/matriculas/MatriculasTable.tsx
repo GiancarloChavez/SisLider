@@ -101,14 +101,13 @@ export function MatriculasTable({ cursos }: Props) {
               <TableHead className="font-semibold text-zinc-600">Curso</TableHead>
               <TableHead className="font-semibold text-zinc-600">Período</TableHead>
               <TableHead className="font-semibold text-zinc-600">Inscritos / Cupo</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Precio mensual</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={5}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <ClipboardList className="h-7 w-7 text-zinc-300" />
@@ -181,11 +180,6 @@ export function MatriculasTable({ cursos }: Props) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-mono font-semibold text-zinc-800">
-                        S/{c.precioMensual.toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
                       <span className={cn(
                         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
                         estadoConfig.cls
@@ -206,6 +200,10 @@ export function MatriculasTable({ cursos }: Props) {
                               <span>{h.aula.nombre}</span>
                               <span className="text-zinc-300">·</span>
                               <span className="font-mono text-xs">{h.horaInicio}–{h.horaFin}</span>
+                              <span className="text-zinc-300">·</span>
+                              <span className="text-zinc-500">{h.numeroGrupo}</span>
+                              <span className="text-zinc-300">·</span>
+                              <span className="font-mono font-semibold text-zinc-700">S/{h.precioMensual.toFixed(2)}/mes</span>
                               <span className="flex gap-1">
                                 {[...h.dias]
                                   .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))

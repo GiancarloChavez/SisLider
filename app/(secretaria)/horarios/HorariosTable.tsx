@@ -122,10 +122,12 @@ export function HorariosTable({ horarios, selectData }: Props) {
           <TableHeader>
             <TableRow className="bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="font-semibold text-zinc-600">Curso</TableHead>
+              <TableHead className="font-semibold text-zinc-600">Grupo</TableHead>
               <TableHead className="font-semibold text-zinc-600">Docente</TableHead>
               <TableHead className="font-semibold text-zinc-600">Aula</TableHead>
               <TableHead className="font-semibold text-zinc-600">Días</TableHead>
               <TableHead className="font-semibold text-zinc-600">Horario</TableHead>
+              <TableHead className="font-semibold text-zinc-600">Precio/mes</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
               <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
             </TableRow>
@@ -133,7 +135,7 @@ export function HorariosTable({ horarios, selectData }: Props) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={9}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <CalendarDays className="h-7 w-7 text-zinc-300" />
@@ -158,6 +160,9 @@ export function HorariosTable({ horarios, selectData }: Props) {
                       <p className="text-xs text-zinc-400 mt-0.5">{h.curso.nivel}</p>
                     )}
                   </TableCell>
+                  <TableCell className="text-sm font-medium text-zinc-700">
+                    {h.numeroGrupo}
+                  </TableCell>
                   <TableCell className="text-zinc-600 text-sm">
                     {h.docente.apellido}, {h.docente.nombre}
                   </TableCell>
@@ -179,6 +184,9 @@ export function HorariosTable({ horarios, selectData }: Props) {
                   </TableCell>
                   <TableCell className="font-mono text-sm text-zinc-700 whitespace-nowrap">
                     {h.horaInicio}–{h.horaFin}
+                  </TableCell>
+                  <TableCell className="font-mono font-semibold text-zinc-800 whitespace-nowrap">
+                    S/{h.precioMensual.toFixed(2)}
                   </TableCell>
                   <TableCell><StatusPill active={h.activo} /></TableCell>
                   <TableCell className="text-right">

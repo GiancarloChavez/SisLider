@@ -70,22 +70,6 @@ export function CursoDialog({ open, onClose, curso }: Props) {
             )}
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="precioMensual">Precio mensual (S/) *</Label>
-            <Input
-              id="precioMensual"
-              name="precioMensual"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={curso?.precioMensual ? Number(curso.precioMensual) : ""}
-              placeholder="0.00"
-            />
-            {state.errors?.precioMensual && (
-              <p className="text-xs text-destructive">{state.errors.precioMensual[0]}</p>
-            )}
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="fechaInicio">Fecha de inicio *</Label>

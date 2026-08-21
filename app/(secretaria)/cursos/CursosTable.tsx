@@ -118,7 +118,6 @@ export function CursosTable({ cursos }: Props) {
               <TableHead className="font-semibold text-zinc-600">Nombre</TableHead>
               <TableHead className="font-semibold text-zinc-600">Nivel</TableHead>
               <TableHead className="font-semibold text-zinc-600">Período</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Precio mensual</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
               <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
             </TableRow>
@@ -126,7 +125,7 @@ export function CursosTable({ cursos }: Props) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={5}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <GraduationCap className="h-7 w-7 text-zinc-300" />
@@ -158,9 +157,6 @@ export function CursosTable({ cursos }: Props) {
                       <div className="mt-1">
                         <PeriodoPill estado={estado} />
                       </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-zinc-700 font-medium">
-                      S/{Number(curso.precioMensual).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <span className={cn(

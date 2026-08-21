@@ -9,6 +9,8 @@ export type HorarioSerialized = {
   idCurso: string;
   idDocente: string;
   idAula: string;
+  numeroGrupo: string;
+  precioMensual: number;
   horaInicio: string;
   horaFin: string;
   activo: boolean;
@@ -61,6 +63,8 @@ const horarioSchema = z
     idCurso: z.string().min(1, "Selecciona un curso"),
     idDocente: z.string().min(1, "Selecciona un docente"),
     idAula: z.string().min(1, "Selecciona un aula"),
+    numeroGrupo: z.string().min(1, "El nombre del grupo es requerido").max(50),
+    precioMensual: z.coerce.number().positive("El precio debe ser mayor a 0"),
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
     horaFin: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
     dias: z.array(z.string()).min(1, "Selecciona al menos un día"),
@@ -82,6 +86,8 @@ export async function createHorario(
     idCurso: formData.get("idCurso"),
     idDocente: formData.get("idDocente"),
     idAula: formData.get("idAula"),
+    numeroGrupo: formData.get("numeroGrupo"),
+    precioMensual: formData.get("precioMensual"),
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
     dias: formData.getAll("dia"),
@@ -113,6 +119,8 @@ export async function updateHorario(
     idCurso: formData.get("idCurso"),
     idDocente: formData.get("idDocente"),
     idAula: formData.get("idAula"),
+    numeroGrupo: formData.get("numeroGrupo"),
+    precioMensual: formData.get("precioMensual"),
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
     dias: formData.getAll("dia"),

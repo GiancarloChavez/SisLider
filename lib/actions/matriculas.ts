@@ -18,11 +18,13 @@ export type AlumnoSearchResult = {
 
 export type HorarioConCupo = {
   id: string;
+  numeroGrupo: string;
+  precioMensual: number;
   horaInicio: string;
   horaFin: string;
   cupoOcupado: number;
   dias: string[];
-  curso: { nombre: string; nivel: string | null; precioMensual: number };
+  curso: { nombre: string; nivel: string | null };
   docente: { nombre: string; apellido: string };
   aula: { nombre: string; capacidad: number };
   cursoProximo: boolean;
@@ -40,7 +42,6 @@ export type CursoConMatriculas = {
   id: string;
   nombre: string;
   nivel: string | null;
-  precioMensual: number;
   fechaInicio: string;
   fechaFin: string;
   activo: boolean;
@@ -48,6 +49,8 @@ export type CursoConMatriculas = {
   cupoTotal: number;
   horarios: {
     id: string;
+    numeroGrupo: string;
+    precioMensual: number;
     dias: string[];
     horaInicio: string;
     horaFin: string;
@@ -127,6 +130,8 @@ export async function getMatriculaFormData(): Promise<{
 
   const horarios: HorarioConCupo[] = horariosRaw.map((h) => ({
     id: h.id,
+    numeroGrupo: h.numeroGrupo,
+    precioMensual: Number(h.precioMensual),
     horaInicio: h.horaInicio.toISOString().slice(11, 16),
     horaFin: h.horaFin.toISOString().slice(11, 16),
     cupoOcupado: h._count.matriculas,
@@ -134,7 +139,6 @@ export async function getMatriculaFormData(): Promise<{
     curso: {
       nombre: h.curso.nombre,
       nivel: h.curso.nivel,
-      precioMensual: Number(h.curso.precioMensual),
     },
     docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
     aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
@@ -173,7 +177,6 @@ export async function getCursosConMatriculas(): Promise<CursoConMatriculas[]> {
     id: c.id,
     nombre: c.nombre,
     nivel: c.nivel,
-    precioMensual: Number(c.precioMensual),
     fechaInicio: c.fechaInicio.toISOString().slice(0, 10),
     fechaFin: c.fechaFin.toISOString().slice(0, 10),
     activo: c.activo,
@@ -181,6 +184,8 @@ export async function getCursosConMatriculas(): Promise<CursoConMatriculas[]> {
     cupoTotal: c.horarios.reduce((s, h) => s + h.aula.capacidad, 0),
     horarios: c.horarios.map((h) => ({
       id: h.id,
+      numeroGrupo: h.numeroGrupo,
+      precioMensual: Number(h.precioMensual),
       dias: h.dias.map((d) => d.dia),
       horaInicio: h.horaInicio.toISOString().slice(11, 16),
       horaFin: h.horaFin.toISOString().slice(11, 16),
@@ -230,7 +235,7 @@ export async function createMatricula(
     return { errors: { idAlumno: ["El alumno ya está matriculado en este horario"] } };
   }
 
-  let precioFinal = Number(horario.curso.precioMensual);
+  let precioFinal = Number(horario.precioMensual);
   if (idDescuento) {
     const descuento = await prisma.descuento.findUnique({ where: { id: idDescuento } });
     if (descuento) {
@@ -429,7 +434,7 @@ export async function createMatriculaConPago(
     return { errors: { idHorario: ["El horario no tiene cupo disponible"] } };
   }
 
-  let precioFinal = Number(horario.curso.precioMensual);
+  let precioFinal = Number(horario.precioMensual);
   if (idDescuento) {
     const descuento = await prisma.descuento.findUnique({ where: { id: idDescuento } });
     if (descuento) {

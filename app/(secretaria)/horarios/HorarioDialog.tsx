@@ -208,6 +208,36 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="numeroGrupo">Grupo *</Label>
+              <Input
+                id="numeroGrupo"
+                name="numeroGrupo"
+                defaultValue={horario?.numeroGrupo ?? "Grupo 1"}
+                placeholder="Ej: Grupo 1, Grupo A, Turno Mañana"
+              />
+              {state.errors?.numeroGrupo && (
+                <p className="text-xs text-destructive">{state.errors.numeroGrupo[0]}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="precioMensual">Precio mensual (S/) *</Label>
+              <Input
+                id="precioMensual"
+                name="precioMensual"
+                type="number"
+                step="0.01"
+                min="0.01"
+                defaultValue={horario?.precioMensual ?? ""}
+                placeholder="0.00"
+              />
+              {state.errors?.precioMensual && (
+                <p className="text-xs text-destructive">{state.errors.precioMensual[0]}</p>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1">
             <Label htmlFor="idDocente">Docente *</Label>
             <select

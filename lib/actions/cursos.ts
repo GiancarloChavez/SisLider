@@ -4,7 +4,6 @@ export type CursoSerialized = {
   id: string;
   nombre: string;
   nivel: string | null;
-  precioMensual: number;
   fechaInicio: string;
   fechaFin: string;
   activo: boolean;
@@ -19,7 +18,6 @@ const cursoSchema = z
   .object({
     nombre: z.string().min(1, "El nombre es requerido").max(100),
     nivel: z.string().max(50).optional(),
-    precioMensual: z.coerce.number().positive("El precio debe ser mayor a 0"),
     fechaInicio: z.string().min(1, "La fecha de inicio es requerida"),
     fechaFin: z.string().min(1, "La fecha de fin es requerida"),
   })
@@ -40,7 +38,6 @@ export async function createCurso(
   const parsed = cursoSchema.safeParse({
     nombre: formData.get("nombre"),
     nivel: formData.get("nivel") || undefined,
-    precioMensual: formData.get("precioMensual"),
     fechaInicio: formData.get("fechaInicio"),
     fechaFin: formData.get("fechaFin"),
   });
@@ -69,7 +66,6 @@ export async function updateCurso(
   const parsed = cursoSchema.safeParse({
     nombre: formData.get("nombre"),
     nivel: formData.get("nivel") || undefined,
-    precioMensual: formData.get("precioMensual"),
     fechaInicio: formData.get("fechaInicio"),
     fechaFin: formData.get("fechaFin"),
   });

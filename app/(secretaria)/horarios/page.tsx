@@ -14,6 +14,8 @@ const getHorarios = unstable_cache(
       idCurso: h.idCurso,
       idDocente: h.idDocente,
       idAula: h.idAula,
+      numeroGrupo: h.numeroGrupo,
+      precioMensual: Number(h.precioMensual),
       horaInicio: h.horaInicio.toISOString().slice(11, 16),
       horaFin: h.horaFin.toISOString().slice(11, 16),
       activo: h.activo,

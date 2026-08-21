@@ -92,7 +92,7 @@ model Curso {
   id            String   @id @default(uuid())
   nombre        String   @db.VarChar(100)
   nivel         String?  @db.VarChar(50)
-  precioMensual Decimal  @map("precio_mensual") @db.Decimal(10, 2)
+  precioMensual Decimal? @map("precio_mensual") @db.Decimal(10, 2)
   fechaInicio   DateTime @map("fecha_inicio") @db.Date
   fechaFin      DateTime @map("fecha_fin") @db.Date
   activo        Boolean  @default(true)
@@ -104,14 +104,16 @@ model Curso {
 }
 
 model Horario {
-  id         String   @id @default(uuid())
-  idCurso    String   @map("id_curso")
-  idDocente  String   @map("id_docente")
-  idAula     String   @map("id_aula")
-  horaInicio DateTime @map("hora_inicio") @db.Time
-  horaFin    DateTime @map("hora_fin") @db.Time
-  activo     Boolean  @default(true)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id            String   @id @default(uuid())
+  idCurso       String   @map("id_curso")
+  idDocente     String   @map("id_docente")
+  idAula        String   @map("id_aula")
+  numeroGrupo   String   @default("Grupo 1") @map("numero_grupo") @db.VarChar(50)
+  precioMensual Decimal  @map("precio_mensual") @db.Decimal(10, 2)
+  horaInicio    DateTime @map("hora_inicio") @db.Time
+  horaFin       DateTime @map("hora_fin") @db.Time
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
 
   curso          Curso          @relation(fields: [idCurso], references: [id])
   docente        Docente        @relation(fields: [idDocente], references: [id])

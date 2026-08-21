@@ -155,7 +155,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   }, [query, alumnoSel, alumnoTab]);
 
   // Sync pago completo → monto
-  const precioBase = horarioSel?.curso.precioMensual ?? 0;
+  const precioBase = horarioSel?.precioMensual ?? 0;
   const descuentoSel = descuentos.find(d => d.id === descuentoId);
   const descuentoImporte = descuentoSel
     ? descuentoSel.tipo === "porcentaje"
@@ -565,6 +565,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                             </span>
                           )}
                         </div>
+                        <p className="text-xs text-zinc-500 font-medium">{h.numeroGrupo}</p>
                         {h.curso.nivel && <p className="text-xs text-zinc-400">{h.curso.nivel}</p>}
                       </div>
                       {selected && <CheckCircle2 className="h-4 w-4 text-zinc-900 shrink-0 mt-0.5" />}
@@ -584,7 +585,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                       </p>
                     )}
                     <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
-                      <span className="text-sm font-bold text-zinc-900">S/{h.curso.precioMensual.toFixed(2)}/mes</span>
+                      <span className="text-sm font-bold text-zinc-900">S/{h.precioMensual.toFixed(2)}/mes</span>
                       <span className={cn("flex items-center gap-1 text-xs font-medium", disponible ? "text-green-600" : "text-red-500")}>
                         <Users className="h-3 w-3" /> {libre}/{h.aula.capacidad} libres
                       </span>
@@ -638,6 +639,10 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
             <div className="flex justify-between">
               <span className="text-zinc-500">Curso</span>
               <span className="font-medium text-zinc-900">{horarioSel!.curso.nombre}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Grupo</span>
+              <span className="font-medium text-zinc-900">{horarioSel!.numeroGrupo}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Horario</span>
