@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Search, CheckCircle2, Users, X, Clock, ChevronRight, ChevronLeft,
-  UserPlus, UserSearch,
+  UserPlus, UserSearch, Plus,
 } from "lucide-react";
 import {
   buscarAlumnos,
@@ -45,6 +45,9 @@ type NuevoForm = {
   tieneApoderado: boolean;
   tutorNombre: string; tutorApellido: string; tutorCelular: string;
   tutorCelularAdicional: string; tutorRelacion: string;
+  tieneApoderado2: boolean;
+  tutor2Nombre: string; tutor2Apellido: string; tutor2Celular: string;
+  tutor2CelularAdicional: string; tutor2Relacion: string;
 };
 
 type Props = { horarios: HorarioConCupo[]; descuentos: DescuentoOption[] };
@@ -94,6 +97,29 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
 
+  // ── DNI autocomplete helper ──
+  function useDniAutocomplete(
+    dni: string,
+    setLoading: (v: boolean) => void,
+    setOk: (v: boolean) => void,
+    onResult: (nombre: string, apellido: string) => void
+  ) {
+    useEffect(() => {
+      if (!/^\d{8}$/.test(dni)) { setOk(false); return; }
+      let cancelled = false;
+      setLoading(true);
+      fetch(`/api/dni/${dni}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (cancelled) return;
+          if (data?.nombre) { onResult(data.nombre, data.apellido); setOk(true); }
+        })
+        .finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dni]);
+  }
+
   // ── Step 1: alumno ──
   const [alumnoTab, setAlumnoTab] = useState<"buscar" | "nuevo">("buscar");
 
@@ -111,8 +137,25 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
     tieneApoderado: true,
     tutorNombre: "", tutorApellido: "", tutorCelular: "",
     tutorCelularAdicional: "", tutorRelacion: "",
+    tieneApoderado2: false,
+    tutor2Nombre: "", tutor2Apellido: "", tutor2Celular: "",
+    tutor2CelularAdicional: "", tutor2Relacion: "",
   });
   const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
+
+  // DNI autocomplete states (wizard)
+  const [dniLoading,       setDniLoading]       = useState(false);
+  const [dniOk,            setDniOk]            = useState(false);
+  const [tutorDniLookup,   setTutorDniLookup]   = useState("");
+  const [tutorDniLoading,  setTutorDniLoading]  = useState(false);
+  const [tutorDniOk,       setTutorDniOk]       = useState(false);
+  const [tutor2DniLookup,  setTutor2DniLookup]  = useState("");
+  const [tutor2DniLoading, setTutor2DniLoading] = useState(false);
+  const [tutor2DniOk,      setTutor2DniOk]      = useState(false);
+
+  useDniAutocomplete(nuevo.dni,       setDniLoading,       setDniOk,       (n, a) => { setN("nombre", n); setN("apellido", a); });
+  useDniAutocomplete(tutorDniLookup,  setTutorDniLoading,  setTutorDniOk,  (n, a) => { setN("tutorNombre", n); setN("tutorApellido", a); });
+  useDniAutocomplete(tutor2DniLookup, setTutor2DniLoading, setTutor2DniOk, (n, a) => { setN("tutor2Nombre", n); setN("tutor2Apellido", a); });
 
   // ── Step 2: horario ──
   const [horarioSel, setHorarioSel] = useState<HorarioConCupo | null>(null);
@@ -209,6 +252,12 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
         if (!nuevo.tutorCelular.trim()) errors.tutorCelular = "Celular del apoderado requerido";
         if (!nuevo.tutorRelacion.trim()) errors.tutorRelacion = "Relación requerida";
       }
+      if (nuevo.tieneApoderado && nuevo.tieneApoderado2) {
+        if (!nuevo.tutor2Nombre.trim()) errors.tutor2Nombre = "Nombre del apoderado adicional requerido";
+        if (!nuevo.tutor2Apellido.trim()) errors.tutor2Apellido = "Apellido del apoderado adicional requerido";
+        if (!nuevo.tutor2Celular.trim()) errors.tutor2Celular = "Celular del apoderado adicional requerido";
+        if (!nuevo.tutor2Relacion.trim()) errors.tutor2Relacion = "Relación requerida";
+      }
     }
     setStep1Errors(errors);
     return Object.keys(errors).length === 0;
@@ -261,6 +310,15 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                   celular: nuevo.tutorCelular.trim(),
                   celularAdicional: nuevo.tutorCelularAdicional.trim() || undefined,
                   relacion: nuevo.tutorRelacion.trim(),
+                }
+              : undefined,
+            tutorAdicional: nuevo.tieneApoderado && nuevo.tieneApoderado2 && nuevo.tutor2Nombre.trim()
+              ? {
+                  nombre: nuevo.tutor2Nombre.trim(),
+                  apellido: nuevo.tutor2Apellido.trim(),
+                  celular: nuevo.tutor2Celular.trim(),
+                  celularAdicional: nuevo.tutor2CelularAdicional.trim() || undefined,
+                  relacion: nuevo.tutor2Relacion.trim(),
                 }
               : undefined,
           }
@@ -417,12 +475,16 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>DNI</Label>
-                    <Input
-                      value={nuevo.dni}
-                      onChange={e => setN("dni", e.target.value)}
-                      placeholder="12345678"
-                      maxLength={8}
-                    />
+                    <div className="relative">
+                      <Input
+                        value={nuevo.dni}
+                        onChange={e => { setN("dni", e.target.value); setDniOk(false); }}
+                        placeholder="12345678"
+                        maxLength={8}
+                      />
+                      {dniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>}
+                      {dniOk && !dniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>}
+                    </div>
                     {step1Errors.dni && <p className="text-xs text-destructive">{step1Errors.dni}</p>}
                   </div>
                   <div className="space-y-1">
@@ -482,6 +544,22 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                 {nuevo.tieneApoderado && (
                   <div className="space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Apoderado</p>
+
+                    {/* DNI lookup tutor (no se guarda) */}
+                    <div className="space-y-1">
+                      <Label>DNI del apoderado <span className="text-zinc-400 font-normal">(para autocompletar)</span></Label>
+                      <div className="relative">
+                        <Input
+                          value={tutorDniLookup}
+                          onChange={e => { setTutorDniLookup(e.target.value); setTutorDniOk(false); }}
+                          placeholder="12345678"
+                          maxLength={8}
+                        />
+                        {tutorDniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>}
+                        {tutorDniOk && !tutorDniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label>Nombre *</Label>
@@ -510,6 +588,79 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                       <Input value={nuevo.tutorRelacion} onChange={e => setN("tutorRelacion", e.target.value)} placeholder="Madre, Padre, Tutor legal..." />
                       {step1Errors.tutorRelacion && <p className="text-xs text-destructive">{step1Errors.tutorRelacion}</p>}
                     </div>
+
+                    {/* Botón apoderado adicional */}
+                    {!nuevo.tieneApoderado2 && (
+                      <button
+                        type="button"
+                        onClick={() => setN("tieneApoderado2", true)}
+                        className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors pt-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Agregar apoderado adicional
+                      </button>
+                    )}
+
+                    {/* Sección apoderado adicional */}
+                    {nuevo.tieneApoderado2 && (
+                      <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                            Apoderado adicional
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setN("tieneApoderado2", false)}
+                            className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {/* DNI lookup tutor2 (no se guarda) */}
+                        <div className="space-y-1">
+                          <Label>DNI del apoderado <span className="text-zinc-400 font-normal">(para autocompletar)</span></Label>
+                          <div className="relative">
+                            <Input
+                              value={tutor2DniLookup}
+                              onChange={e => { setTutor2DniLookup(e.target.value); setTutor2DniOk(false); }}
+                              placeholder="12345678"
+                              maxLength={8}
+                            />
+                            {tutor2DniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>}
+                            {tutor2DniOk && !tutor2DniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label>Nombre *</Label>
+                            <Input value={nuevo.tutor2Nombre} onChange={e => setN("tutor2Nombre", e.target.value)} placeholder="Carlos" />
+                            {step1Errors.tutor2Nombre && <p className="text-xs text-destructive">{step1Errors.tutor2Nombre}</p>}
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Apellido *</Label>
+                            <Input value={nuevo.tutor2Apellido} onChange={e => setN("tutor2Apellido", e.target.value)} placeholder="Pérez" />
+                            {step1Errors.tutor2Apellido && <p className="text-xs text-destructive">{step1Errors.tutor2Apellido}</p>}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label>Celular *</Label>
+                            <Input value={nuevo.tutor2Celular} onChange={e => setN("tutor2Celular", e.target.value)} placeholder="987654321" />
+                            {step1Errors.tutor2Celular && <p className="text-xs text-destructive">{step1Errors.tutor2Celular}</p>}
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Celular adicional</Label>
+                            <Input value={nuevo.tutor2CelularAdicional} onChange={e => setN("tutor2CelularAdicional", e.target.value)} placeholder="987654321" />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Relación *</Label>
+                          <Input value={nuevo.tutor2Relacion} onChange={e => setN("tutor2Relacion", e.target.value)} placeholder="Padre, Abuelo, Tutor legal..." />
+                          {step1Errors.tutor2Relacion && <p className="text-xs text-destructive">{step1Errors.tutor2Relacion}</p>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

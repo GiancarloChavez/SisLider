@@ -43,11 +43,20 @@ const apoderadoSchema = z.object({
   tutorRelacion: z.string().min(1, "La relación es requerida").max(50),
 });
 
+const apoderado2Schema = z.object({
+  tutor2Nombre: z.string().min(1, "El nombre del apoderado adicional es requerido").max(100),
+  tutor2Apellido: z.string().min(1, "El apellido del apoderado adicional es requerido").max(100),
+  tutor2Celular: z.string().min(7, "Celular inválido").max(20),
+  tutor2CelularAdicional: z.string().max(20).optional().or(z.literal("")),
+  tutor2Relacion: z.string().min(1, "La relación es requerida").max(50),
+});
+
 export async function createAlumno(
   _prev: AlumnoFormState,
   formData: FormData
 ): Promise<AlumnoFormState> {
   const tieneApoderado = formData.get("tieneApoderado") === "on";
+  const tieneApoderado2 = tieneApoderado && formData.get("tieneApoderado2") === "on";
 
   const parsedAlumno = alumnoSchema.safeParse({
     nombre: formData.get("nombre"),
@@ -73,12 +82,26 @@ export async function createAlumno(
     else apoderado = parsedApoderado.data;
   }
 
+  let apoderado2 = null;
+  if (tieneApoderado2) {
+    const parsed2 = apoderado2Schema.safeParse({
+      tutor2Nombre: formData.get("tutor2Nombre"),
+      tutor2Apellido: formData.get("tutor2Apellido"),
+      tutor2Celular: formData.get("tutor2Celular"),
+      tutor2CelularAdicional: formData.get("tutor2CelularAdicional") || undefined,
+      tutor2Relacion: formData.get("tutor2Relacion"),
+    });
+    if (!parsed2.success) Object.assign(errors, parsed2.error.flatten().fieldErrors);
+    else apoderado2 = parsed2.data;
+  }
+
   if (Object.keys(errors).length > 0) return { errors };
 
   const alumnoData = parsedAlumno.data!;
 
   const alumnoId = randomUUID();
-  const tutorId = tieneApoderado && apoderado ? randomUUID() : null;
+  const tutorId  = tieneApoderado  && apoderado  ? randomUUID() : null;
+  const tutor2Id = tieneApoderado2 && apoderado2 ? randomUUID() : null;
 
   try {
     await prisma.$transaction([
@@ -108,6 +131,23 @@ export async function createAlumno(
             }),
             prisma.tutorAlumno.create({
               data: { idTutor: tutorId, idAlumno: alumnoId, esPrincipal: true },
+            }),
+          ]
+        : []),
+      ...(tieneApoderado2 && apoderado2 && tutor2Id
+        ? [
+            prisma.tutor.create({
+              data: {
+                id: tutor2Id,
+                nombre: apoderado2.tutor2Nombre,
+                apellido: apoderado2.tutor2Apellido,
+                celular: apoderado2.tutor2Celular,
+                celularAdicional: apoderado2.tutor2CelularAdicional || null,
+                relacion: apoderado2.tutor2Relacion,
+              },
+            }),
+            prisma.tutorAlumno.create({
+              data: { idTutor: tutor2Id, idAlumno: alumnoId, esPrincipal: false },
             }),
           ]
         : []),

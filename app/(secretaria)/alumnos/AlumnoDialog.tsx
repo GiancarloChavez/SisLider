@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useActionState, useState, useMemo } from "react";
+import { useEffect, useActionState, useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { Plus, X } from "lucide-react";
 import {
   createAlumno,
   updateAlumno,
@@ -44,7 +45,30 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
   const [tieneApoderado, setTieneApoderado] = useState(true);
+  const [showApoderado2, setShowApoderado2] = useState(false);
+  const apoderado2Ref = useRef<HTMLDivElement>(null);
   const [handled, setHandled] = useState(false);
+
+  // ── Campos controlados (alumno) ──────────────────────────────
+  const [dniVal,      setDniVal]      = useState(alumno?.dni      ?? "");
+  const [nombreVal,   setNombreVal]   = useState(alumno?.nombre   ?? "");
+  const [apellidoVal, setApellidoVal] = useState(alumno?.apellido ?? "");
+  const [dniLoading,  setDniLoading]  = useState(false);
+  const [dniOk,       setDniOk]       = useState(false);
+
+  // ── DNI lookup apoderado principal (no se guarda) ────────────
+  const [tutorDni,         setTutorDni]         = useState("");
+  const [tutorNombreVal,   setTutorNombreVal]   = useState("");
+  const [tutorApellidoVal, setTutorApellidoVal] = useState("");
+  const [tutorDniLoading,  setTutorDniLoading]  = useState(false);
+  const [tutorDniOk,       setTutorDniOk]       = useState(false);
+
+  // ── DNI lookup apoderado adicional (no se guarda) ────────────
+  const [tutor2Dni,         setTutor2Dni]         = useState("");
+  const [tutor2NombreVal,   setTutor2NombreVal]   = useState("");
+  const [tutor2ApellidoVal, setTutor2ApellidoVal] = useState("");
+  const [tutor2DniLoading,  setTutor2DniLoading]  = useState(false);
+  const [tutor2DniOk,       setTutor2DniOk]       = useState(false);
 
   // Date picker state
   const [birthDay, setBirthDay]     = useState("");
@@ -68,11 +92,42 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
     if (birthDay && Number(birthDay) > maxDays) setBirthDay("");
   }, [maxDays, birthDay]);
 
+  // ── Autocomplete helper ───────────────────────────────────────
+  function useDniAutocomplete(
+    dni: string,
+    setLoading: (v: boolean) => void,
+    setOk: (v: boolean) => void,
+    onResult: (nombre: string, apellido: string) => void
+  ) {
+    useEffect(() => {
+      if (!/^\d{8}$/.test(dni)) { setOk(false); return; }
+      let cancelled = false;
+      setLoading(true);
+      fetch(`/api/dni/${dni}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (cancelled) return;
+          if (data?.nombre) { onResult(data.nombre, data.apellido); setOk(true); }
+        })
+        .finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dni]);
+  }
+
+  useDniAutocomplete(dniVal,    setDniLoading,    setDniOk,    (n, a) => { setNombreVal(n);   setApellidoVal(a); });
+  useDniAutocomplete(tutorDni,  setTutorDniLoading,  setTutorDniOk,  (n, a) => { setTutorNombreVal(n);   setTutorApellidoVal(a); });
+  useDniAutocomplete(tutor2Dni, setTutor2DniLoading, setTutor2DniOk, (n, a) => { setTutor2NombreVal(n); setTutor2ApellidoVal(a); });
+
   // Initialize / reset state when dialog opens
   useEffect(() => {
     if (!open) return;
     if (!alumno) {
       setTieneApoderado(true);
+      setShowApoderado2(false);
+      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniOk(false);
+      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniOk(false);
+      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniOk(false);
       setBirthDay("");
       setBirthMonth("");
       setBirthYear("");
@@ -128,7 +183,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                 <Input
                   id="nombre"
                   name="nombre"
-                  defaultValue={alumno?.nombre ?? ""}
+                  value={nombreVal}
+                  onChange={e => setNombreVal(e.target.value)}
                   placeholder="Juan"
                 />
                 {e.nombre && <p className="text-xs text-destructive">{e.nombre[0]}</p>}
@@ -138,7 +194,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                 <Input
                   id="apellido"
                   name="apellido"
-                  defaultValue={alumno?.apellido ?? ""}
+                  value={apellidoVal}
+                  onChange={e => setApellidoVal(e.target.value)}
                   placeholder="Pérez"
                 />
                 {e.apellido && <p className="text-xs text-destructive">{e.apellido[0]}</p>}
@@ -148,13 +205,22 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="dni">DNI</Label>
-                <Input
-                  id="dni"
-                  name="dni"
-                  defaultValue={alumno?.dni ?? ""}
-                  placeholder="12345678"
-                  maxLength={8}
-                />
+                <div className="relative">
+                  <Input
+                    id="dni"
+                    name="dni"
+                    value={dniVal}
+                    onChange={e => { setDniVal(e.target.value); setDniOk(false); }}
+                    placeholder="12345678"
+                    maxLength={8}
+                  />
+                  {dniLoading && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
+                  )}
+                  {dniOk && !dniLoading && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
+                  )}
+                </div>
                 {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
               </div>
               <div className="space-y-1">
@@ -258,17 +324,48 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   Apoderado
                 </p>
 
+                {/* DNI lookup apoderado (no se guarda) */}
+                <div className="space-y-1">
+                  <Label>DNI del apoderado <span className="text-zinc-400 font-normal">(para autocompletar)</span></Label>
+                  <div className="relative">
+                    <Input
+                      value={tutorDni}
+                      onChange={e => { setTutorDni(e.target.value); setTutorDniOk(false); }}
+                      placeholder="12345678"
+                      maxLength={8}
+                    />
+                    {tutorDniLoading && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
+                    )}
+                    {tutorDniOk && !tutorDniLoading && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="tutorNombre">Nombre *</Label>
-                    <Input id="tutorNombre" name="tutorNombre" placeholder="María" />
+                    <Input
+                      id="tutorNombre"
+                      name="tutorNombre"
+                      value={tutorNombreVal}
+                      onChange={e => setTutorNombreVal(e.target.value)}
+                      placeholder="María"
+                    />
                     {e.tutorNombre && (
                       <p className="text-xs text-destructive">{e.tutorNombre[0]}</p>
                     )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tutorApellido">Apellido *</Label>
-                    <Input id="tutorApellido" name="tutorApellido" placeholder="Pérez" />
+                    <Input
+                      id="tutorApellido"
+                      name="tutorApellido"
+                      value={tutorApellidoVal}
+                      onChange={e => setTutorApellidoVal(e.target.value)}
+                      placeholder="Pérez"
+                    />
                     {e.tutorApellido && (
                       <p className="text-xs text-destructive">{e.tutorApellido[0]}</p>
                     )}
@@ -304,6 +401,103 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                     <p className="text-xs text-destructive">{e.tutorRelacion[0]}</p>
                   )}
                 </div>
+
+                {/* Botón para agregar apoderado adicional */}
+                {!showApoderado2 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowApoderado2(true);
+                      setTimeout(() => apoderado2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors pt-1"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Agregar apoderado adicional
+                  </button>
+                )}
+
+                {/* Sección apoderado adicional */}
+                {showApoderado2 && (
+                  <div ref={apoderado2Ref} className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3.5">
+                    <input type="hidden" name="tieneApoderado2" value="on" />
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                        Apoderado adicional
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowApoderado2(false)}
+                        className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                        aria-label="Eliminar apoderado adicional"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {/* DNI lookup apoderado2 (no se guarda) */}
+                    <div className="space-y-1">
+                      <Label>DNI del apoderado <span className="text-zinc-400 font-normal">(para autocompletar)</span></Label>
+                      <div className="relative">
+                        <Input
+                          value={tutor2Dni}
+                          onChange={e => { setTutor2Dni(e.target.value); setTutor2DniOk(false); }}
+                          placeholder="12345678"
+                          maxLength={8}
+                        />
+                        {tutor2DniLoading && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
+                        )}
+                        {tutor2DniOk && !tutor2DniLoading && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="tutor2Nombre">Nombre *</Label>
+                        <Input
+                          id="tutor2Nombre"
+                          name="tutor2Nombre"
+                          value={tutor2NombreVal}
+                          onChange={e => setTutor2NombreVal(e.target.value)}
+                          placeholder="Carlos"
+                        />
+                        {e.tutor2Nombre && <p className="text-xs text-destructive">{e.tutor2Nombre[0]}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="tutor2Apellido">Apellido *</Label>
+                        <Input
+                          id="tutor2Apellido"
+                          name="tutor2Apellido"
+                          value={tutor2ApellidoVal}
+                          onChange={e => setTutor2ApellidoVal(e.target.value)}
+                          placeholder="Pérez"
+                        />
+                        {e.tutor2Apellido && <p className="text-xs text-destructive">{e.tutor2Apellido[0]}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="tutor2Celular">Celular *</Label>
+                        <Input id="tutor2Celular" name="tutor2Celular" placeholder="987654321" />
+                        {e.tutor2Celular && <p className="text-xs text-destructive">{e.tutor2Celular[0]}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="tutor2CelularAdicional">Celular adicional</Label>
+                        <Input id="tutor2CelularAdicional" name="tutor2CelularAdicional" placeholder="987654321" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="tutor2Relacion">Relación *</Label>
+                      <Input id="tutor2Relacion" name="tutor2Relacion" placeholder="Padre, Abuelo, Tutor legal..." />
+                      {e.tutor2Relacion && <p className="text-xs text-destructive">{e.tutor2Relacion[0]}</p>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

@@ -348,6 +348,14 @@ export async function toggleMatriculaEstado(id: string, estado: string) {
 
 // ─── Create matrícula + pago inicial (wizard) ─────────────────────────────────
 
+export type TutorData = {
+  nombre: string;
+  apellido: string;
+  celular: string;
+  celularAdicional?: string;
+  relacion: string;
+};
+
 export type NuevoAlumnoData = {
   nombre: string;
   apellido: string;
@@ -355,13 +363,8 @@ export type NuevoAlumnoData = {
   celular?: string;
   fechaNacimiento?: string;
   tieneApoderado: boolean;
-  tutor?: {
-    nombre: string;
-    apellido: string;
-    celular: string;
-    celularAdicional?: string;
-    relacion: string;
-  };
+  tutor?: TutorData;
+  tutorAdicional?: TutorData;
 };
 
 export type MatriculaConPagoInput = {
@@ -510,6 +513,24 @@ export async function createMatriculaConPago(
         }),
         prisma.tutorAlumno.create({
           data: { idTutor: tutorId, idAlumno: alumnoId, esPrincipal: true },
+        })
+      );
+    }
+    if (nuevoAlumno.tieneApoderado && nuevoAlumno.tutorAdicional) {
+      const tutor2Id = randomUUID();
+      ops.push(
+        prisma.tutor.create({
+          data: {
+            id: tutor2Id,
+            nombre: nuevoAlumno.tutorAdicional.nombre,
+            apellido: nuevoAlumno.tutorAdicional.apellido,
+            celular: nuevoAlumno.tutorAdicional.celular,
+            celularAdicional: nuevoAlumno.tutorAdicional.celularAdicional || null,
+            relacion: nuevoAlumno.tutorAdicional.relacion,
+          },
+        }),
+        prisma.tutorAlumno.create({
+          data: { idTutor: tutor2Id, idAlumno: alumnoId, esPrincipal: false },
         })
       );
     }
