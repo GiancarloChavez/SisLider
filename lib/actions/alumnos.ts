@@ -80,37 +80,46 @@ export async function createAlumno(
   const alumnoId = randomUUID();
   const tutorId = tieneApoderado && apoderado ? randomUUID() : null;
 
-  await prisma.$transaction([
-    prisma.alumno.create({
-      data: {
-        id: alumnoId,
-        nombre: alumnoData.nombre,
-        apellido: alumnoData.apellido,
-        dni: alumnoData.dni || null,
-        celular: alumnoData.celular || null,
-        fechaNacimiento: alumnoData.fechaNacimiento
-          ? new Date(alumnoData.fechaNacimiento)
-          : null,
-      },
-    }),
-    ...(tieneApoderado && apoderado && tutorId
-      ? [
-          prisma.tutor.create({
-            data: {
-              id: tutorId,
-              nombre: apoderado.tutorNombre,
-              apellido: apoderado.tutorApellido,
-              celular: apoderado.tutorCelular,
-              celularAdicional: apoderado.tutorCelularAdicional || null,
-              relacion: apoderado.tutorRelacion,
-            },
-          }),
-          prisma.tutorAlumno.create({
-            data: { idTutor: tutorId, idAlumno: alumnoId, esPrincipal: true },
-          }),
-        ]
-      : []),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.alumno.create({
+        data: {
+          id: alumnoId,
+          nombre: alumnoData.nombre,
+          apellido: alumnoData.apellido,
+          dni: alumnoData.dni || null,
+          celular: alumnoData.celular || null,
+          fechaNacimiento: alumnoData.fechaNacimiento
+            ? new Date(alumnoData.fechaNacimiento)
+            : null,
+        },
+      }),
+      ...(tieneApoderado && apoderado && tutorId
+        ? [
+            prisma.tutor.create({
+              data: {
+                id: tutorId,
+                nombre: apoderado.tutorNombre,
+                apellido: apoderado.tutorApellido,
+                celular: apoderado.tutorCelular,
+                celularAdicional: apoderado.tutorCelularAdicional || null,
+                relacion: apoderado.tutorRelacion,
+              },
+            }),
+            prisma.tutorAlumno.create({
+              data: { idTutor: tutorId, idAlumno: alumnoId, esPrincipal: true },
+            }),
+          ]
+        : []),
+    ]);
+  } catch (e: unknown) {
+    const code = (e as { code?: string }).code;
+    if (code === "P2002") {
+      return { errors: { dni: ["Este DNI ya está registrado en el sistema"] } };
+    }
+    console.error("[createAlumno]", e);
+    return { errors: { _: ["Error al registrar el alumno. Intenta nuevamente."] } };
+  }
 
   revalidateTag("alumnos");
   return { message: "ok" };
@@ -131,18 +140,27 @@ export async function updateAlumno(
 
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
 
-  await prisma.alumno.update({
-    where: { id },
-    data: {
-      nombre: parsed.data.nombre,
-      apellido: parsed.data.apellido,
-      dni: parsed.data.dni || null,
-      celular: parsed.data.celular || null,
-      fechaNacimiento: parsed.data.fechaNacimiento
-        ? new Date(parsed.data.fechaNacimiento)
-        : null,
-    },
-  });
+  try {
+    await prisma.alumno.update({
+      where: { id },
+      data: {
+        nombre: parsed.data.nombre,
+        apellido: parsed.data.apellido,
+        dni: parsed.data.dni || null,
+        celular: parsed.data.celular || null,
+        fechaNacimiento: parsed.data.fechaNacimiento
+          ? new Date(parsed.data.fechaNacimiento)
+          : null,
+      },
+    });
+  } catch (e: unknown) {
+    const code = (e as { code?: string }).code;
+    if (code === "P2002") {
+      return { errors: { dni: ["Este DNI ya está registrado en el sistema"] } };
+    }
+    console.error("[updateAlumno]", e);
+    return { errors: { _: ["Error al actualizar el alumno. Intenta nuevamente."] } };
+  }
 
   revalidateTag("alumnos");
   return { message: "ok" };

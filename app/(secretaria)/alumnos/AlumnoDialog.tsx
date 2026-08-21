@@ -109,6 +109,13 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
           {/* Hidden input with combined fecha */}
           <input type="hidden" name="fechaNacimiento" value={fechaNacimiento} />
 
+          {/* Error global */}
+          {e._ && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {e._[0]}
+            </p>
+          )}
+
           {/* ── Datos del alumno ──────────────────────────────── */}
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
