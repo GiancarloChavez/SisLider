@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useActionState, useState } from "react";
+import { useEffect, useActionState, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ArrowLeftRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import {
   createHorario,
   updateHorario,
+  getNextNumeroGrupo,
   type HorarioFormState,
   type HorarioSerialized,
   type HorarioSelectData,
@@ -158,6 +160,21 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [handled, setHandled] = useState(false);
 
+  // Grupo auto/manual
+  const [autoNumero, setAutoNumero] = useState(true);
+  const [nextNumero, setNextNumero] = useState<number | null>(null);
+  const [, startFetch] = useTransition();
+
+  useEffect(() => {
+    if (open && !horario) {
+      setAutoNumero(true);
+      startFetch(async () => {
+        const n = await getNextNumeroGrupo();
+        setNextNumero(n);
+      });
+    }
+  }, [open, horario]);
+
   const [fmt, setFmt] = useState<TimeFormat>(readStoredFmt);
   const [inicio, setInicio] = useState<TimeParts>(() =>
     parseTimeParts(horario?.horaInicio, readStoredFmt())
@@ -208,34 +225,71 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="numeroGrupo">Grupo *</Label>
-              <Input
-                id="numeroGrupo"
-                name="numeroGrupo"
-                defaultValue={horario?.numeroGrupo ?? "Grupo 1"}
-                placeholder="Ej: Grupo 1, Grupo A, Turno Mañana"
-              />
-              {state.errors?.numeroGrupo && (
-                <p className="text-xs text-destructive">{state.errors.numeroGrupo[0]}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="precioMensual">Precio mensual (S/) *</Label>
-              <Input
-                id="precioMensual"
-                name="precioMensual"
-                type="number"
-                step="0.01"
-                min="0.01"
-                defaultValue={horario?.precioMensual ?? ""}
-                placeholder="0.00"
-              />
-              {state.errors?.precioMensual && (
-                <p className="text-xs text-destructive">{state.errors.precioMensual[0]}</p>
-              )}
-            </div>
+          {/* ── Número de grupo ───────────────────────────────────────── */}
+          <div className="space-y-2">
+            {!horario && (
+              <label className={cn(
+                "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors select-none",
+                autoNumero ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+              )}>
+                <input
+                  type="checkbox"
+                  name="autoNumero"
+                  value="true"
+                  checked={autoNumero}
+                  onChange={(e) => setAutoNumero(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
+                />
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 leading-tight">
+                    Asignar número de grupo automáticamente
+                    {autoNumero && nextNumero !== null && (
+                      <span className="ml-2 font-mono text-zinc-500">→ Grupo {nextNumero}</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Se asigna el siguiente número disponible.
+                  </p>
+                </div>
+              </label>
+            )}
+
+            {(!autoNumero || horario) && (
+              <div className="space-y-1">
+                <Label htmlFor="numeroGrupo">
+                  {horario ? "Número de grupo" : "Número de grupo manual *"}
+                </Label>
+                <Input
+                  id="numeroGrupo"
+                  name="numeroGrupo"
+                  type="number"
+                  min="1"
+                  step="1"
+                  defaultValue={horario?.numeroGrupo ?? ""}
+                  placeholder="Ej: 15"
+                />
+                {state.errors?.numeroGrupo && (
+                  <p className="text-xs text-destructive">{state.errors.numeroGrupo[0]}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Precio mensual ────────────────────────────────────────── */}
+          <div className="space-y-1">
+            <Label htmlFor="precioMensual">Precio mensual (S/) *</Label>
+            <Input
+              id="precioMensual"
+              name="precioMensual"
+              type="number"
+              step="0.01"
+              min="0.01"
+              defaultValue={horario?.precioMensual ?? ""}
+              placeholder="0.00"
+            />
+            {state.errors?.precioMensual && (
+              <p className="text-xs text-destructive">{state.errors.precioMensual[0]}</p>
+            )}
           </div>
 
           <div className="space-y-1">

@@ -296,27 +296,27 @@ async function crearInfraestructura() {
 
 async function crearHorarios() {
   const horarios = [
-    // Modelaje
-    { id: IDS.h1,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, horaInicio: time(9,0),  horaFin: time(12,0), dias: ["Sábado"] },
-    { id: IDS.h2,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, horaInicio: time(19,0), horaFin: time(21,0), dias: ["Miércoles", "Viernes"] },
-    // Fotografía
-    { id: IDS.h3,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, horaInicio: time(10,0), horaFin: time(13,0), dias: ["Sábado"] },
-    { id: IDS.h4,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, horaInicio: time(19,0),  horaFin: time(21,0),  dias: ["Martes", "Jueves"] },
-    // Ajedrez
-    { id: IDS.h5,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, horaInicio: time(16,0), horaFin: time(17,30), dias: ["Lunes", "Miércoles"] },
-    { id: IDS.h6,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, horaInicio: time(8,0),  horaFin: time(10,0), dias: ["Sábado"] },
-    // Oratoria
-    { id: IDS.h7,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, horaInicio: time(9,0),  horaFin: time(10,30), dias: ["Martes", "Jueves", "Sábado"] },
-    { id: IDS.h8,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, horaInicio: time(19,30), horaFin: time(21,0),  dias: ["Lunes", "Miércoles", "Viernes"] },
-    // Pintura
-    { id: IDS.h9,  idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, horaInicio: time(15,0), horaFin: time(18,0),  dias: ["Sábado"] },
-    { id: IDS.h10, idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, horaInicio: time(17,0), horaFin: time(19,0), dias: ["Martes", "Jueves"] },
-    // Violín
-    { id: IDS.h11, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, horaInicio: time(8,0),  horaFin: time(9,0),  dias: ["Lunes", "Miércoles", "Viernes"] },
-    { id: IDS.h12, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, horaInicio: time(18,0), horaFin: time(20,0), dias: ["Martes", "Jueves"] },
-    // Edición de Video
-    { id: IDS.h13, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, horaInicio: time(15,0), horaFin: time(18,0), dias: ["Sábado"] },
-    { id: IDS.h14, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, horaInicio: time(18,0), horaFin: time(21,0),  dias: ["Lunes", "Viernes"] },
+    // Modelaje (S/250)
+    { id: IDS.h1,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, numeroGrupo: "1",  precioMensual: 250, horaInicio: time(9,0),  horaFin: time(12,0),  dias: ["Sábado"] },
+    { id: IDS.h2,  idCurso: IDS.c1, idDocente: IDS.d1, idAula: IDS.a7, numeroGrupo: "2",  precioMensual: 250, horaInicio: time(19,0), horaFin: time(21,0),  dias: ["Miércoles", "Viernes"] },
+    // Fotografía (S/230)
+    { id: IDS.h3,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, numeroGrupo: "3",  precioMensual: 230, horaInicio: time(10,0), horaFin: time(13,0),  dias: ["Sábado"] },
+    { id: IDS.h4,  idCurso: IDS.c2, idDocente: IDS.d2, idAula: IDS.a2, numeroGrupo: "4",  precioMensual: 230, horaInicio: time(19,0), horaFin: time(21,0),  dias: ["Martes", "Jueves"] },
+    // Ajedrez (S/150)
+    { id: IDS.h5,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, numeroGrupo: "5",  precioMensual: 150, horaInicio: time(16,0), horaFin: time(17,30), dias: ["Lunes", "Miércoles"] },
+    { id: IDS.h6,  idCurso: IDS.c3, idDocente: IDS.d3, idAula: IDS.a3, numeroGrupo: "6",  precioMensual: 150, horaInicio: time(8,0),  horaFin: time(10,0),  dias: ["Sábado"] },
+    // Oratoria (S/180)
+    { id: IDS.h7,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, numeroGrupo: "7",  precioMensual: 180, horaInicio: time(9,0),  horaFin: time(10,30), dias: ["Martes", "Jueves", "Sábado"] },
+    { id: IDS.h8,  idCurso: IDS.c4, idDocente: IDS.d4, idAula: IDS.a4, numeroGrupo: "8",  precioMensual: 180, horaInicio: time(19,30),horaFin: time(21,0),  dias: ["Lunes", "Miércoles", "Viernes"] },
+    // Pintura (S/200)
+    { id: IDS.h9,  idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, numeroGrupo: "9",  precioMensual: 200, horaInicio: time(15,0), horaFin: time(18,0),  dias: ["Sábado"] },
+    { id: IDS.h10, idCurso: IDS.c5, idDocente: IDS.d5, idAula: IDS.a5, numeroGrupo: "10", precioMensual: 200, horaInicio: time(17,0), horaFin: time(19,0),  dias: ["Martes", "Jueves"] },
+    // Violín (S/280)
+    { id: IDS.h11, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, numeroGrupo: "11", precioMensual: 280, horaInicio: time(8,0),  horaFin: time(9,0),   dias: ["Lunes", "Miércoles", "Viernes"] },
+    { id: IDS.h12, idCurso: IDS.c6, idDocente: IDS.d6, idAula: IDS.a6, numeroGrupo: "12", precioMensual: 280, horaInicio: time(18,0), horaFin: time(20,0),  dias: ["Martes", "Jueves"] },
+    // Edición de Video (S/260)
+    { id: IDS.h13, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, numeroGrupo: "13", precioMensual: 260, horaInicio: time(15,0), horaFin: time(18,0),  dias: ["Sábado"] },
+    { id: IDS.h14, idCurso: IDS.c7, idDocente: IDS.d7, idAula: IDS.a8, numeroGrupo: "14", precioMensual: 260, horaInicio: time(18,0), horaFin: time(21,0),  dias: ["Lunes", "Viernes"] },
   ];
 
   for (const h of horarios) {

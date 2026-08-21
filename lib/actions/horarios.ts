@@ -58,12 +58,17 @@ export async function getHorarioSelectData(): Promise<HorarioSelectData> {
   };
 }
 
+export async function getNextNumeroGrupo(): Promise<number> {
+  const all = await prisma.horario.findMany({ select: { numeroGrupo: true } });
+  const nums = all.map((h) => parseInt(h.numeroGrupo, 10)).filter((n) => !isNaN(n));
+  return nums.length > 0 ? Math.max(...nums) + 1 : 1;
+}
+
 const horarioSchema = z
   .object({
     idCurso: z.string().min(1, "Selecciona un curso"),
     idDocente: z.string().min(1, "Selecciona un docente"),
     idAula: z.string().min(1, "Selecciona un aula"),
-    numeroGrupo: z.string().min(1, "El nombre del grupo es requerido").max(50),
     precioMensual: z.coerce.number().positive("El precio debe ser mayor a 0"),
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
     horaFin: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
@@ -86,7 +91,6 @@ export async function createHorario(
     idCurso: formData.get("idCurso"),
     idDocente: formData.get("idDocente"),
     idAula: formData.get("idAula"),
-    numeroGrupo: formData.get("numeroGrupo"),
     precioMensual: formData.get("precioMensual"),
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
@@ -97,15 +101,30 @@ export async function createHorario(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
+  // Resolver número de grupo
+  const autoNumero = formData.get("autoNumero") === "true";
+  let numeroGrupo: string;
+
+  if (autoNumero) {
+    numeroGrupo = String(await getNextNumeroGrupo());
+  } else {
+    const raw = formData.get("numeroGrupo");
+    const num = z.coerce.number().int().positive("Debe ser un número entero positivo").safeParse(raw);
+    if (!num.success) return { errors: { numeroGrupo: num.error.errors.map((e) => e.message) } };
+    numeroGrupo = String(num.data);
+  }
+
   const { dias, horaInicio, horaFin, ...rest } = parsed.data;
-  await prisma.horario.create({
-    data: {
-      ...rest,
-      horaInicio: parseTime(horaInicio),
-      horaFin: parseTime(horaFin),
-      dias: { create: dias.map((dia) => ({ dia })) },
-    },
-  });
+  try {
+    await prisma.horario.create({
+      data: { ...rest, numeroGrupo, horaInicio: parseTime(horaInicio), horaFin: parseTime(horaFin), dias: { create: dias.map((dia) => ({ dia })) } },
+    });
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") {
+      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe. Elige otro número.`] } };
+    }
+    throw e;
+  }
   revalidateTag("horarios");
   return { message: "ok" };
 }
@@ -119,7 +138,6 @@ export async function updateHorario(
     idCurso: formData.get("idCurso"),
     idDocente: formData.get("idDocente"),
     idAula: formData.get("idAula"),
-    numeroGrupo: formData.get("numeroGrupo"),
     precioMensual: formData.get("precioMensual"),
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
@@ -130,19 +148,30 @@ export async function updateHorario(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
+  // Número de grupo para edición (siempre manual)
+  const raw = formData.get("numeroGrupo");
+  const num = z.coerce.number().int().positive("Debe ser un número entero positivo").safeParse(raw);
+  if (!num.success) return { errors: { numeroGrupo: num.error.errors.map((e) => e.message) } };
+  const numeroGrupo = String(num.data);
+
   const { dias, horaInicio, horaFin, ...rest } = parsed.data;
-  await prisma.horario.update({
-    where: { id },
-    data: {
-      ...rest,
-      horaInicio: parseTime(horaInicio),
-      horaFin: parseTime(horaFin),
-      dias: {
-        deleteMany: {},
-        create: dias.map((dia) => ({ dia })),
+  try {
+    await prisma.horario.update({
+      where: { id },
+      data: {
+        ...rest,
+        numeroGrupo,
+        horaInicio: parseTime(horaInicio),
+        horaFin: parseTime(horaFin),
+        dias: { deleteMany: {}, create: dias.map((dia) => ({ dia })) },
       },
-    },
-  });
+    });
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") {
+      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe. Elige otro número.`] } };
+    }
+    throw e;
+  }
   revalidateTag("horarios");
   return { message: "ok" };
 }
