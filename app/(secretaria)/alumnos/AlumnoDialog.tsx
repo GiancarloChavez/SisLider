@@ -56,15 +56,10 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const [dniLoading,  setDniLoading]  = useState(false);
   const [dniOk,       setDniOk]       = useState(false);
 
-  // ── "Sin DNI" toggles ────────────────────────────────────────
-  const [sinDni,       setSinDni]       = useState(false);
-  const [sinTutorDni,  setSinTutorDni]  = useState(false);
-  const [sinTutor2Dni, setSinTutor2Dni] = useState(false);
-
-  // Limpiar el DNI cuando se activa "sin DNI"
-  useEffect(() => { if (sinDni)       { setDniVal("");    } }, [sinDni]);
-  useEffect(() => { if (sinTutorDni)  { setTutorDni("");  } }, [sinTutorDni]);
-  useEffect(() => { if (sinTutor2Dni) { setTutor2Dni(""); } }, [sinTutor2Dni]);
+  // ── Toggles "usar DNI" (checked = busca por DNI) ────────────
+  const [usaDni,       setUsaDni]       = useState(false);
+  const [usaTutorDni,  setUsaTutorDni]  = useState(false);
+  const [usaTutor2Dni, setUsaTutor2Dni] = useState(false);
 
   // ── DNI lookup apoderado principal (no se guarda) ────────────
   const [tutorDni,         setTutorDni]         = useState("");
@@ -135,9 +130,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
     if (!alumno) {
       setTieneApoderado(true);
       setShowApoderado2(false);
-      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniOk(false); setSinDni(false);
-      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniOk(false); setSinTutorDni(false);
-      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniOk(false); setSinTutor2Dni(false);
+      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniOk(false); setUsaDni(false);
+      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniOk(false); setUsaTutorDni(false);
+      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniOk(false); setUsaTutor2Dni(false);
       setBirthDay("");
       setBirthMonth("");
       setBirthYear("");
@@ -199,8 +194,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                     onChange={e => { setDniVal(e.target.value); setDniOk(false); }}
                     placeholder="12345678"
                     maxLength={8}
-                    disabled={sinDni}
-                    className={cn(sinDni && "opacity-40")}
+                    disabled={!usaDni}
+                    className={cn(!usaDni && "opacity-40")}
                   />
                   {dniLoading && (
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
@@ -209,15 +204,16 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
                   )}
                 </div>
-                <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer whitespace-nowrap shrink-0 select-none">
-                  <input
-                    type="checkbox"
-                    checked={sinDni}
-                    onChange={e => setSinDni(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900"
-                  />
-                  Sin DNI
-                </label>
+                <input
+                  type="checkbox"
+                  checked={usaDni}
+                  onChange={e => {
+                    setUsaDni(e.target.checked);
+                    if (!e.target.checked) { setDniVal(""); setDniOk(false); }
+                  }}
+                  title="Buscar por DNI"
+                  className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                />
               </div>
               {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
             </div>
@@ -231,8 +227,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   name="nombre"
                   value={nombreVal}
                   onChange={e => setNombreVal(e.target.value)}
-                  readOnly={dniOk && !sinDni}
-                  className={cn(dniOk && !sinDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  readOnly={dniOk && usaDni}
+                  className={cn(dniOk && usaDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="Juan"
                 />
                 {e.nombre && <p className="text-xs text-destructive">{e.nombre[0]}</p>}
@@ -244,8 +240,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   name="apellido"
                   value={apellidoVal}
                   onChange={e => setApellidoVal(e.target.value)}
-                  readOnly={dniOk && !sinDni}
-                  className={cn(dniOk && !sinDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  readOnly={dniOk && usaDni}
+                  className={cn(dniOk && usaDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="Pérez"
                 />
                 {e.apellido && <p className="text-xs text-destructive">{e.apellido[0]}</p>}
@@ -353,7 +349,7 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   Apoderado
                 </p>
 
-                {/* DNI apoderado con checkbox "Sin DNI" */}
+                {/* DNI apoderado con checkbox */}
                 <div className="space-y-1">
                   <Label>DNI del apoderado</Label>
                   <div className="flex items-center gap-2">
@@ -363,8 +359,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                         onChange={e => { setTutorDni(e.target.value); setTutorDniOk(false); }}
                         placeholder="12345678"
                         maxLength={8}
-                        disabled={sinTutorDni}
-                        className={cn(sinTutorDni && "opacity-40")}
+                        disabled={!usaTutorDni}
+                        className={cn(!usaTutorDni && "opacity-40")}
                       />
                       {tutorDniLoading && (
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
@@ -373,15 +369,16 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
                       )}
                     </div>
-                    <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer whitespace-nowrap shrink-0 select-none">
-                      <input
-                        type="checkbox"
-                        checked={sinTutorDni}
-                        onChange={e => setSinTutorDni(e.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900"
-                      />
-                      Sin DNI
-                    </label>
+                    <input
+                      type="checkbox"
+                      checked={usaTutorDni}
+                      onChange={e => {
+                        setUsaTutorDni(e.target.checked);
+                        if (!e.target.checked) { setTutorDni(""); setTutorDniOk(false); }
+                      }}
+                      title="Buscar por DNI"
+                      className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                    />
                   </div>
                 </div>
 
@@ -393,8 +390,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                       name="tutorNombre"
                       value={tutorNombreVal}
                       onChange={e => setTutorNombreVal(e.target.value)}
-                      readOnly={tutorDniOk && !sinTutorDni}
-                      className={cn(tutorDniOk && !sinTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                      readOnly={tutorDniOk && usaTutorDni}
+                      className={cn(tutorDniOk && usaTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                       placeholder="María"
                     />
                     {e.tutorNombre && (
@@ -408,8 +405,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                       name="tutorApellido"
                       value={tutorApellidoVal}
                       onChange={e => setTutorApellidoVal(e.target.value)}
-                      readOnly={tutorDniOk && !sinTutorDni}
-                      className={cn(tutorDniOk && !sinTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                      readOnly={tutorDniOk && usaTutorDni}
+                      className={cn(tutorDniOk && usaTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                       placeholder="Pérez"
                     />
                     {e.tutorApellido && (
@@ -481,7 +478,7 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                       </button>
                     </div>
 
-                    {/* DNI apoderado2 con checkbox "Sin DNI" */}
+                    {/* DNI apoderado2 con checkbox */}
                     <div className="space-y-1">
                       <Label>DNI del apoderado</Label>
                       <div className="flex items-center gap-2">
@@ -491,8 +488,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                             onChange={e => { setTutor2Dni(e.target.value); setTutor2DniOk(false); }}
                             placeholder="12345678"
                             maxLength={8}
-                            disabled={sinTutor2Dni}
-                            className={cn(sinTutor2Dni && "opacity-40")}
+                            disabled={!usaTutor2Dni}
+                            className={cn(!usaTutor2Dni && "opacity-40")}
                           />
                           {tutor2DniLoading && (
                             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
@@ -501,15 +498,16 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
                           )}
                         </div>
-                        <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer whitespace-nowrap shrink-0 select-none">
-                          <input
-                            type="checkbox"
-                            checked={sinTutor2Dni}
-                            onChange={e => setSinTutor2Dni(e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900"
-                          />
-                          Sin DNI
-                        </label>
+                        <input
+                          type="checkbox"
+                          checked={usaTutor2Dni}
+                          onChange={e => {
+                            setUsaTutor2Dni(e.target.checked);
+                            if (!e.target.checked) { setTutor2Dni(""); setTutor2DniOk(false); }
+                          }}
+                          title="Buscar por DNI"
+                          className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                        />
                       </div>
                     </div>
 
@@ -521,8 +519,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                           name="tutor2Nombre"
                           value={tutor2NombreVal}
                           onChange={e => setTutor2NombreVal(e.target.value)}
-                          readOnly={tutor2DniOk && !sinTutor2Dni}
-                          className={cn(tutor2DniOk && !sinTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                          readOnly={tutor2DniOk && usaTutor2Dni}
+                          className={cn(tutor2DniOk && usaTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
                           placeholder="Carlos"
                         />
                         {e.tutor2Nombre && <p className="text-xs text-destructive">{e.tutor2Nombre[0]}</p>}
@@ -534,8 +532,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                           name="tutor2Apellido"
                           value={tutor2ApellidoVal}
                           onChange={e => setTutor2ApellidoVal(e.target.value)}
-                          readOnly={tutor2DniOk && !sinTutor2Dni}
-                          className={cn(tutor2DniOk && !sinTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                          readOnly={tutor2DniOk && usaTutor2Dni}
+                          className={cn(tutor2DniOk && usaTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
                           placeholder="Pérez"
                         />
                         {e.tutor2Apellido && <p className="text-xs text-destructive">{e.tutor2Apellido[0]}</p>}

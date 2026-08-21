@@ -146,20 +146,15 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   // DNI autocomplete states (wizard)
   const [dniLoading,       setDniLoading]       = useState(false);
   const [dniOk,            setDniOk]            = useState(false);
-  const [sinDni,           setSinDni]           = useState(false);
+  const [usaDni,           setUsaDni]           = useState(false);
   const [tutorDniLookup,   setTutorDniLookup]   = useState("");
   const [tutorDniLoading,  setTutorDniLoading]  = useState(false);
   const [tutorDniOk,       setTutorDniOk]       = useState(false);
-  const [sinTutorDni,      setSinTutorDni]      = useState(false);
+  const [usaTutorDni,      setUsaTutorDni]      = useState(false);
   const [tutor2DniLookup,  setTutor2DniLookup]  = useState("");
   const [tutor2DniLoading, setTutor2DniLoading] = useState(false);
   const [tutor2DniOk,      setTutor2DniOk]      = useState(false);
-  const [sinTutor2Dni,     setSinTutor2Dni]     = useState(false);
-
-  // Limpiar DNI al activar "Sin DNI"
-  useEffect(() => { if (sinDni)      { setN("dni", ""); } }, [sinDni]);
-  useEffect(() => { if (sinTutorDni) { setTutorDniLookup(""); } }, [sinTutorDni]);
-  useEffect(() => { if (sinTutor2Dni){ setTutor2DniLookup(""); } }, [sinTutor2Dni]);
+  const [usaTutor2Dni,     setUsaTutor2Dni]     = useState(false);
 
   useDniAutocomplete(nuevo.dni,       setDniLoading,       setDniOk,       (n, a) => { setN("nombre", n); setN("apellido", a); });
   useDniAutocomplete(tutorDniLookup,  setTutorDniLoading,  setTutorDniOk,  (n, a) => { setN("tutorNombre", n); setN("tutorApellido", a); });
@@ -471,21 +466,22 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                         onChange={e => { setN("dni", e.target.value); setDniOk(false); }}
                         placeholder="12345678"
                         maxLength={8}
-                        disabled={sinDni}
-                        className={cn(sinDni && "opacity-40")}
+                        disabled={!usaDni}
+                        className={cn(!usaDni && "opacity-40")}
                       />
                       {dniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>}
                       {dniOk && !dniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>}
                     </div>
-                    <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer whitespace-nowrap shrink-0 select-none">
-                      <input
-                        type="checkbox"
-                        checked={sinDni}
-                        onChange={e => setSinDni(e.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900"
-                      />
-                      Sin DNI
-                    </label>
+                    <input
+                      type="checkbox"
+                      checked={usaDni}
+                      onChange={e => {
+                        setUsaDni(e.target.checked);
+                        if (!e.target.checked) { setN("dni", ""); setDniOk(false); }
+                      }}
+                      title="Buscar por DNI"
+                      className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                    />
                   </div>
                   {step1Errors.dni && <p className="text-xs text-destructive">{step1Errors.dni}</p>}
                 </div>
@@ -497,8 +493,8 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                     <Input
                       value={nuevo.nombre}
                       onChange={e => setN("nombre", e.target.value)}
-                      readOnly={dniOk && !sinDni}
-                      className={cn(dniOk && !sinDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                      readOnly={dniOk && usaDni}
+                      className={cn(dniOk && usaDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                       placeholder="Juan"
                     />
                     {step1Errors.nombre && <p className="text-xs text-destructive">{step1Errors.nombre}</p>}
@@ -508,8 +504,8 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                     <Input
                       value={nuevo.apellido}
                       onChange={e => setN("apellido", e.target.value)}
-                      readOnly={dniOk && !sinDni}
-                      className={cn(dniOk && !sinDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                      readOnly={dniOk && usaDni}
+                      className={cn(dniOk && usaDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                       placeholder="Pérez"
                     />
                     {step1Errors.apellido && <p className="text-xs text-destructive">{step1Errors.apellido}</p>}
@@ -584,21 +580,22 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                             onChange={e => { setTutorDniLookup(e.target.value); setTutorDniOk(false); }}
                             placeholder="12345678"
                             maxLength={8}
-                            disabled={sinTutorDni}
-                            className={cn(sinTutorDni && "opacity-40")}
+                            disabled={!usaTutorDni}
+                            className={cn(!usaTutorDni && "opacity-40")}
                           />
                           {tutorDniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>}
                           {tutorDniOk && !tutorDniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>}
                         </div>
-                        <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer whitespace-nowrap shrink-0 select-none">
-                          <input
-                            type="checkbox"
-                            checked={sinTutorDni}
-                            onChange={e => setSinTutorDni(e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900"
-                          />
-                          Sin DNI
-                        </label>
+                        <input
+                          type="checkbox"
+                          checked={usaTutorDni}
+                          onChange={e => {
+                            setUsaTutorDni(e.target.checked);
+                            if (!e.target.checked) { setTutorDniLookup(""); setTutorDniOk(false); }
+                          }}
+                          title="Buscar por DNI"
+                          className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                        />
                       </div>
                     </div>
 
@@ -608,8 +605,8 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                         <Input
                           value={nuevo.tutorNombre}
                           onChange={e => setN("tutorNombre", e.target.value)}
-                          readOnly={tutorDniOk && !sinTutorDni}
-                          className={cn(tutorDniOk && !sinTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                          readOnly={tutorDniOk && usaTutorDni}
+                          className={cn(tutorDniOk && usaTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                           placeholder="María"
                         />
                         {step1Errors.tutorNombre && <p className="text-xs text-destructive">{step1Errors.tutorNombre}</p>}
@@ -619,8 +616,8 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                         <Input
                           value={nuevo.tutorApellido}
                           onChange={e => setN("tutorApellido", e.target.value)}
-                          readOnly={tutorDniOk && !sinTutorDni}
-                          className={cn(tutorDniOk && !sinTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                          readOnly={tutorDniOk && usaTutorDni}
+                          className={cn(tutorDniOk && usaTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
                           placeholder="Pérez"
                         />
                         {step1Errors.tutorApellido && <p className="text-xs text-destructive">{step1Errors.tutorApellido}</p>}
@@ -680,21 +677,22 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                                 onChange={e => { setTutor2DniLookup(e.target.value); setTutor2DniOk(false); }}
                                 placeholder="12345678"
                                 maxLength={8}
-                                disabled={sinTutor2Dni}
-                                className={cn(sinTutor2Dni && "opacity-40")}
+                                disabled={!usaTutor2Dni}
+                                className={cn(!usaTutor2Dni && "opacity-40")}
                               />
                               {tutor2DniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>}
                               {tutor2DniOk && !tutor2DniLoading && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>}
                             </div>
-                            <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer whitespace-nowrap shrink-0 select-none">
-                              <input
-                                type="checkbox"
-                                checked={sinTutor2Dni}
-                                onChange={e => setSinTutor2Dni(e.target.checked)}
-                                className="h-3.5 w-3.5 rounded border-zinc-300 accent-zinc-900"
-                              />
-                              Sin DNI
-                            </label>
+                            <input
+                              type="checkbox"
+                              checked={usaTutor2Dni}
+                              onChange={e => {
+                                setUsaTutor2Dni(e.target.checked);
+                                if (!e.target.checked) { setTutor2DniLookup(""); setTutor2DniOk(false); }
+                              }}
+                              title="Buscar por DNI"
+                              className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                            />
                           </div>
                         </div>
 
@@ -704,8 +702,8 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                             <Input
                               value={nuevo.tutor2Nombre}
                               onChange={e => setN("tutor2Nombre", e.target.value)}
-                              readOnly={tutor2DniOk && !sinTutor2Dni}
-                              className={cn(tutor2DniOk && !sinTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                              readOnly={tutor2DniOk && usaTutor2Dni}
+                              className={cn(tutor2DniOk && usaTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
                               placeholder="Carlos"
                             />
                             {step1Errors.tutor2Nombre && <p className="text-xs text-destructive">{step1Errors.tutor2Nombre}</p>}
@@ -715,8 +713,8 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                             <Input
                               value={nuevo.tutor2Apellido}
                               onChange={e => setN("tutor2Apellido", e.target.value)}
-                              readOnly={tutor2DniOk && !sinTutor2Dni}
-                              className={cn(tutor2DniOk && !sinTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                              readOnly={tutor2DniOk && usaTutor2Dni}
+                              className={cn(tutor2DniOk && usaTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
                               placeholder="Pérez"
                             />
                             {step1Errors.tutor2Apellido && <p className="text-xs text-destructive">{step1Errors.tutor2Apellido}</p>}
