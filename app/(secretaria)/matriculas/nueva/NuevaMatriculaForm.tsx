@@ -146,15 +146,15 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   // DNI autocomplete states (wizard)
   const [dniLoading,       setDniLoading]       = useState(false);
   const [dniOk,            setDniOk]            = useState(false);
-  const [usaDni,           setUsaDni]           = useState(false);
+  const [usaDni,           setUsaDni]           = useState(true);
   const [tutorDniLookup,   setTutorDniLookup]   = useState("");
   const [tutorDniLoading,  setTutorDniLoading]  = useState(false);
   const [tutorDniOk,       setTutorDniOk]       = useState(false);
-  const [usaTutorDni,      setUsaTutorDni]      = useState(false);
+  const [usaTutorDni,      setUsaTutorDni]      = useState(true);
   const [tutor2DniLookup,  setTutor2DniLookup]  = useState("");
   const [tutor2DniLoading, setTutor2DniLoading] = useState(false);
   const [tutor2DniOk,      setTutor2DniOk]      = useState(false);
-  const [usaTutor2Dni,     setUsaTutor2Dni]     = useState(false);
+  const [usaTutor2Dni,     setUsaTutor2Dni]     = useState(true);
 
   useDniAutocomplete(nuevo.dni,       setDniLoading,       setDniOk,       (n, a) => { setN("nombre", n); setN("apellido", a); });
   useDniAutocomplete(tutorDniLookup,  setTutorDniLoading,  setTutorDniOk,  (n, a) => { setN("tutorNombre", n); setN("tutorApellido", a); });

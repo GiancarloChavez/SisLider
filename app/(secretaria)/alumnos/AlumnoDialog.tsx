@@ -57,9 +57,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const [dniOk,       setDniOk]       = useState(false);
 
   // ── Toggles "usar DNI" (checked = busca por DNI) ────────────
-  const [usaDni,       setUsaDni]       = useState(false);
-  const [usaTutorDni,  setUsaTutorDni]  = useState(false);
-  const [usaTutor2Dni, setUsaTutor2Dni] = useState(false);
+  const [usaDni,       setUsaDni]       = useState(true);
+  const [usaTutorDni,  setUsaTutorDni]  = useState(true);
+  const [usaTutor2Dni, setUsaTutor2Dni] = useState(true);
 
   // ── DNI lookup apoderado principal (no se guarda) ────────────
   const [tutorDni,         setTutorDni]         = useState("");
@@ -130,9 +130,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
     if (!alumno) {
       setTieneApoderado(true);
       setShowApoderado2(false);
-      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniOk(false); setUsaDni(false);
-      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniOk(false); setUsaTutorDni(false);
-      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniOk(false); setUsaTutor2Dni(false);
+      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniOk(false); setUsaDni(true);
+      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniOk(false); setUsaTutorDni(true);
+      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniOk(false); setUsaTutor2Dni(true);
       setBirthDay("");
       setBirthMonth("");
       setBirthYear("");
