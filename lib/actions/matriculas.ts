@@ -340,3 +340,221 @@ export async function toggleMatriculaEstado(id: string, estado: string) {
   revalidateTag("alumnos");
   revalidateTag("dashboard");
 }
+
+// ─── Create matrícula + pago inicial (wizard) ─────────────────────────────────
+
+export type NuevoAlumnoData = {
+  nombre: string;
+  apellido: string;
+  dni?: string;
+  celular?: string;
+  fechaNacimiento?: string;
+  tieneApoderado: boolean;
+  tutor?: {
+    nombre: string;
+    apellido: string;
+    celular: string;
+    celularAdicional?: string;
+    relacion: string;
+  };
+};
+
+export type MatriculaConPagoInput = {
+  alumnoId?: string;
+  nuevoAlumno?: NuevoAlumnoData;
+  idHorario: string;
+  dias: string[];
+  idDescuento?: string;
+  montoAbono: number;
+  metodoPago: "efectivo" | "transferencia";
+};
+
+export type MatriculaConPagoResult = {
+  errors?: Record<string, string[]>;
+  message?: string;
+};
+
+export async function createMatriculaConPago(
+  input: MatriculaConPagoInput
+): Promise<MatriculaConPagoResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { errors: { _: ["No autenticado"] } };
+  const idUsuario = session.user.id;
+
+  const usuarioExiste = await prisma.usuario.count({ where: { id: idUsuario } });
+  if (!usuarioExiste) return { errors: { _: ["Sesión caducada. Cierra sesión e inicia sesión nuevamente."] } };
+
+  const { alumnoId: existingAlumnoId, nuevoAlumno, idHorario, dias, idDescuento, montoAbono, metodoPago } = input;
+
+  if (!existingAlumnoId && !nuevoAlumno) {
+    return { errors: { alumno: ["Selecciona o registra un alumno"] } };
+  }
+  if (!dias || dias.length === 0) {
+    return { errors: { dias: ["Selecciona al menos un día"] } };
+  }
+  if (!montoAbono || montoAbono <= 0) {
+    return { errors: { montoAbono: ["El monto debe ser mayor a 0"] } };
+  }
+
+  // Validate new alumno data if provided
+  if (!existingAlumnoId && nuevoAlumno) {
+    const alumnoVal = z.object({
+      nombre: z.string().min(1, "Nombre requerido").max(100),
+      apellido: z.string().min(1, "Apellido requerido").max(100),
+      dni: z.string().length(8, "DNI debe tener 8 dígitos").regex(/^\d+$/, "Solo dígitos").optional().or(z.literal("")),
+      celular: z.string().max(20).optional().or(z.literal("")),
+    }).safeParse(nuevoAlumno);
+    if (!alumnoVal.success) return { errors: alumnoVal.error.flatten().fieldErrors };
+
+    if (nuevoAlumno.tieneApoderado) {
+      if (!nuevoAlumno.tutor) return { errors: { tutorNombre: ["Datos del apoderado requeridos"] } };
+      const tutorVal = z.object({
+        nombre: z.string().min(1, "Nombre del apoderado requerido").max(100),
+        apellido: z.string().min(1, "Apellido del apoderado requerido").max(100),
+        celular: z.string().min(7, "Celular inválido").max(20),
+        relacion: z.string().min(1, "Relación requerida").max(50),
+      }).safeParse(nuevoAlumno.tutor);
+      if (!tutorVal.success) return { errors: tutorVal.error.flatten().fieldErrors };
+    }
+  }
+
+  const horario = await prisma.horario.findUnique({
+    where: { id: idHorario },
+    include: { curso: true, aula: true },
+  });
+  if (!horario) return { errors: { idHorario: ["Horario no encontrado"] } };
+
+  const cupoOcupado = await prisma.matricula.count({ where: { idHorario, estado: "activa" } });
+  if (cupoOcupado >= horario.aula.capacidad) {
+    return { errors: { idHorario: ["El horario no tiene cupo disponible"] } };
+  }
+
+  let precioFinal = Number(horario.curso.precioMensual);
+  if (idDescuento) {
+    const descuento = await prisma.descuento.findUnique({ where: { id: idDescuento } });
+    if (descuento) {
+      precioFinal = descuento.tipo.toLowerCase() === "porcentaje"
+        ? precioFinal * (1 - Number(descuento.valor) / 100)
+        : Math.max(0, precioFinal - Number(descuento.valor));
+    }
+  }
+
+  if (montoAbono > precioFinal + 0.01) {
+    return { errors: { montoAbono: [`El monto no puede superar S/${precioFinal.toFixed(2)}`] } };
+  }
+
+  const alumnoId = existingAlumnoId ?? randomUUID();
+
+  if (existingAlumnoId) {
+    const dup = await prisma.matricula.findUnique({
+      where: { idAlumno_idHorario: { idAlumno: existingAlumnoId, idHorario } },
+    });
+    if (dup) return { errors: { idHorario: ["El alumno ya está matriculado en este horario"] } };
+  }
+
+  const now = new Date();
+  const pagoRef = horario.curso.fechaInicio > now ? horario.curso.fechaInicio : now;
+  const ultimoDiaMes = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + 1, 0);
+
+  const matriculaId = randomUUID();
+  const mesPagoId = randomUUID();
+  const nuevoEstado = montoAbono >= precioFinal - 0.01 ? "pagado" : "parcial";
+
+  let habilitado: boolean;
+  if (existingAlumnoId) {
+    const otrosPendientes = await prisma.mesPago.count({
+      where: {
+        matricula: { idAlumno: existingAlumnoId, estado: "activa" },
+        estado: { in: ["pendiente", "parcial"] },
+      },
+    });
+    habilitado = nuevoEstado === "pagado" && otrosPendientes === 0;
+  } else {
+    habilitado = nuevoEstado === "pagado";
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ops: any[] = [];
+
+  if (!existingAlumnoId && nuevoAlumno) {
+    ops.push(
+      prisma.alumno.create({
+        data: {
+          id: alumnoId,
+          nombre: nuevoAlumno.nombre,
+          apellido: nuevoAlumno.apellido,
+          dni: nuevoAlumno.dni || null,
+          celular: nuevoAlumno.celular || null,
+          fechaNacimiento: nuevoAlumno.fechaNacimiento ? new Date(nuevoAlumno.fechaNacimiento) : null,
+          habilitado,
+        },
+      })
+    );
+    if (nuevoAlumno.tieneApoderado && nuevoAlumno.tutor) {
+      const tutorId = randomUUID();
+      ops.push(
+        prisma.tutor.create({
+          data: {
+            id: tutorId,
+            nombre: nuevoAlumno.tutor.nombre,
+            apellido: nuevoAlumno.tutor.apellido,
+            celular: nuevoAlumno.tutor.celular,
+            celularAdicional: nuevoAlumno.tutor.celularAdicional || null,
+            relacion: nuevoAlumno.tutor.relacion,
+          },
+        }),
+        prisma.tutorAlumno.create({
+          data: { idTutor: tutorId, idAlumno: alumnoId, esPrincipal: true },
+        })
+      );
+    }
+  }
+
+  ops.push(
+    prisma.matricula.create({
+      data: {
+        id: matriculaId,
+        idAlumno: alumnoId,
+        idHorario,
+        idDescuento: idDescuento ?? null,
+        precioFinalMensual: precioFinal,
+        estado: "activa",
+        dias: { create: dias.map((dia) => ({ dia })) },
+      },
+    }),
+    prisma.mesPago.create({
+      data: {
+        id: mesPagoId,
+        idMatricula: matriculaId,
+        anio: pagoRef.getFullYear(),
+        mes: pagoRef.getMonth() + 1,
+        montoTotal: precioFinal,
+        montoPagado: montoAbono,
+        estado: nuevoEstado,
+        fechaVencimiento: ultimoDiaMes,
+      },
+    }),
+    prisma.abono.create({
+      data: { idMesPago: mesPagoId, idUsuario, monto: montoAbono, metodoPago },
+    })
+  );
+
+  if (existingAlumnoId) {
+    ops.push(prisma.alumno.update({ where: { id: alumnoId }, data: { habilitado } }));
+  }
+
+  try {
+    await prisma.$transaction(ops);
+  } catch (e: unknown) {
+    const code = (e as { code?: string }).code;
+    if (code === "P2002") return { errors: { dni: ["Este DNI ya está registrado en el sistema"] } };
+    console.error("[createMatriculaConPago]", e);
+    return { errors: { _: ["Error al registrar. Intenta nuevamente."] } };
+  }
+
+  revalidateTag("matriculas");
+  revalidateTag("alumnos");
+  revalidateTag("pagos");
+  revalidateTag("dashboard");
+  return { message: "ok" };
+}

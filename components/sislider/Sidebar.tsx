@@ -7,7 +7,6 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  Users,
   ClipboardList,
   CheckSquare,
   GraduationCap,
@@ -29,7 +28,6 @@ const navGroups = [
     label: "Académico",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/alumnos", label: "Alumnos", icon: Users },
       { href: "/docentes", label: "Docentes", icon: UserCheck },
       { href: "/cursos", label: "Cursos", icon: GraduationCap },
       { href: "/aulas", label: "Aulas", icon: DoorOpen },

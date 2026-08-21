@@ -1,116 +1,162 @@
 "use client";
 
-import { useState, useTransition, useActionState, useEffect } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, CheckCircle2, Users, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  Search, CheckCircle2, Users, X, Clock, ChevronRight, ChevronLeft,
+  UserPlus, UserSearch,
+} from "lucide-react";
+import {
   buscarAlumnos,
-  createMatricula,
+  createMatriculaConPago,
   type AlumnoSearchResult,
   type HorarioConCupo,
   type DescuentoOption,
-  type MatriculaFormState,
+  type NuevoAlumnoData,
 } from "@/lib/actions/matriculas";
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+const SELECT_CLASS =
+  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+const ANIO_ACTUAL = new Date().getFullYear();
+const ANIOS = Array.from({ length: ANIO_ACTUAL - 1929 }, (_, i) => ANIO_ACTUAL - i);
 const DIA_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const DIA_ABREV: Record<string, string> = {
   Lunes: "Lu", Martes: "Ma", Miércoles: "Mi",
   Jueves: "Ju", Viernes: "Vi", Sábado: "Sa", Domingo: "Do",
 };
 
-const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const initialState: MatriculaFormState = {};
-
-type Props = {
-  horarios: HorarioConCupo[];
-  descuentos: DescuentoOption[];
+type NuevoForm = {
+  nombre: string; apellido: string; dni: string; celular: string;
+  birthDay: string; birthMonth: string; birthYear: string;
+  tieneApoderado: boolean;
+  tutorNombre: string; tutorApellido: string; tutorCelular: string;
+  tutorCelularAdicional: string; tutorRelacion: string;
 };
+
+type Props = { horarios: HorarioConCupo[]; descuentos: DescuentoOption[] };
+
+// ─── Step indicator ───────────────────────────────────────────────────────────
+
+function StepIndicator({ step }: { step: number }) {
+  const steps = ["Alumno", "Horario", "Pago"];
+  return (
+    <div className="flex items-center gap-0 mb-8">
+      {steps.map((label, i) => {
+        const n = i + 1;
+        const done = n < step;
+        const active = n === step;
+        return (
+          <div key={label} className="flex items-center">
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-colors",
+                done ? "bg-zinc-900 text-white" : active ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-400"
+              )}>
+                {done ? <CheckCircle2 className="h-4 w-4" /> : n}
+              </span>
+              <span className={cn(
+                "text-sm font-medium transition-colors",
+                active ? "text-zinc-900" : done ? "text-zinc-500" : "text-zinc-300"
+              )}>
+                {label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={cn(
+                "mx-3 h-px w-10 transition-colors",
+                n < step ? "bg-zinc-900" : "bg-zinc-200"
+              )} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Main wizard ──────────────────────────────────────────────────────────────
 
 export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   const router = useRouter();
-  const [state, formAction, submitting] = useActionState(createMatricula, initialState);
+  const [step, setStep] = useState(1);
 
-  // Search
+  // ── Step 1: alumno ──
+  const [alumnoTab, setAlumnoTab] = useState<"buscar" | "nuevo">("buscar");
+
+  // Search mode
   const [query, setQuery] = useState("");
-  const [resultados, setResultados] = useState<AlumnoSearchResult[]>([]);
+  const [results, setResults] = useState<AlumnoSearchResult[]>([]);
   const [searching, startSearch] = useTransition();
   const [noResults, setNoResults] = useState(false);
+  const [alumnoSel, setAlumnoSel] = useState<AlumnoSearchResult | null>(null);
 
-  // Selections
-  const [alumno, setAlumno] = useState<AlumnoSearchResult | null>(null);
-  const [horario, setHorario] = useState<HorarioConCupo | null>(null);
+  // New alumno form
+  const [nuevo, setNuevo] = useState<NuevoForm>({
+    nombre: "", apellido: "", dni: "", celular: "",
+    birthDay: "", birthMonth: "", birthYear: "",
+    tieneApoderado: true,
+    tutorNombre: "", tutorApellido: "", tutorCelular: "",
+    tutorCelularAdicional: "", tutorRelacion: "",
+  });
+  const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
+
+  // ── Step 2: horario ──
+  const [horarioSel, setHorarioSel] = useState<HorarioConCupo | null>(null);
   const [dias, setDias] = useState<string[]>([]);
+  const [step2Error, setStep2Error] = useState("");
+
+  // ── Step 3: pago ──
   const [descuentoId, setDescuentoId] = useState("");
+  const [montoStr, setMontoStr] = useState("");
+  const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia">("efectivo");
+  const [pagoCompleto, setPagoCompleto] = useState(true);
+  const [submitErrors, setSubmitErrors] = useState<Record<string, string[]>>({});
+  const [isPending, startTransition] = useTransition();
+
+  // Date picker max days
+  const maxDays = useMemo(() => {
+    if (!nuevo.birthMonth || !nuevo.birthYear) return 31;
+    return new Date(Number(nuevo.birthYear), Number(nuevo.birthMonth), 0).getDate();
+  }, [nuevo.birthMonth, nuevo.birthYear]);
 
   useEffect(() => {
-    if (state.message === "ok") {
-      toast.success("Matrícula registrada correctamente");
-      router.push("/matriculas");
+    if (nuevo.birthDay && Number(nuevo.birthDay) > maxDays) {
+      setNuevo(p => ({ ...p, birthDay: "" }));
     }
-  }, [state.message, router]);
+  }, [maxDays, nuevo.birthDay]);
 
-  // Live search — debounced 300 ms
+  // Live search
   useEffect(() => {
-    if (alumno) return;
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setResultados([]);
-      setNoResults(false);
-      return;
-    }
-    const timer = setTimeout(() => {
+    if (alumnoSel || alumnoTab !== "buscar") return;
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); setNoResults(false); return; }
+    const t = setTimeout(() => {
       startSearch(async () => {
-        const res = await buscarAlumnos(trimmed);
-        setResultados(res);
+        const res = await buscarAlumnos(q);
+        setResults(res);
         setNoResults(res.length === 0);
       });
     }, 300);
-    return () => clearTimeout(timer);
-  }, [query, alumno]);
+    return () => clearTimeout(t);
+  }, [query, alumnoSel, alumnoTab]);
 
-  function selectAlumno(a: AlumnoSearchResult) {
-    setAlumno(a);
-    setResultados([]);
-    setQuery("");
-    // reset downstream
-    setHorario(null);
-    setDias([]);
-    setDescuentoId("");
-  }
-
-  function clearAlumno() {
-    setAlumno(null);
-    setHorario(null);
-    setDias([]);
-    setDescuentoId("");
-    setResultados([]);
-    setNoResults(false);
-    setQuery("");
-  }
-
-  function selectHorario(h: HorarioConCupo) {
-    setHorario(h);
-    setDias([...h.dias].sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b)));
-    setDescuentoId("");
-  }
-
-  function toggleDia(dia: string) {
-    setDias((prev) =>
-      prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia]
-    );
-  }
-
-  // Price calculation (client-side preview)
-  const precioBase = horario?.curso.precioMensual ?? 0;
-  const descuentoSel = descuentos.find((d) => d.id === descuentoId);
+  // Sync pago completo → monto
+  const precioBase = horarioSel?.curso.precioMensual ?? 0;
+  const descuentoSel = descuentos.find(d => d.id === descuentoId);
   const descuentoImporte = descuentoSel
     ? descuentoSel.tipo === "porcentaje"
       ? precioBase * (descuentoSel.valor / 100)
@@ -118,284 +164,636 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
     : 0;
   const precioFinal = precioBase - descuentoImporte;
 
-  const e = state.errors ?? {};
-  const canSubmit = alumno !== null && horario !== null && dias.length > 0;
+  useEffect(() => {
+    if (pagoCompleto) setMontoStr(precioFinal > 0 ? precioFinal.toFixed(2) : "");
+  }, [pagoCompleto, precioFinal]);
+
+  // ── Helpers ──
+
+  function setN<K extends keyof NuevoForm>(k: K, v: NuevoForm[K]) {
+    setNuevo(p => ({ ...p, [k]: v }));
+  }
+
+  function selectAlumno(a: AlumnoSearchResult) {
+    setAlumnoSel(a); setResults([]); setQuery("");
+  }
+
+  function clearAlumno() {
+    setAlumnoSel(null); setResults([]); setNoResults(false); setQuery("");
+  }
+
+  function toggleDia(dia: string) {
+    setDias(p => p.includes(dia) ? p.filter(d => d !== dia) : [...p, dia]);
+  }
+
+  function selectHorario(h: HorarioConCupo) {
+    setHorarioSel(h);
+    setDias([...h.dias].sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b)));
+    setDescuentoId("");
+    setPagoCompleto(true);
+  }
+
+  // ── Step validation ──
+
+  function validateStep1(): boolean {
+    const errors: Record<string, string> = {};
+    if (alumnoTab === "buscar") {
+      if (!alumnoSel) errors.alumno = "Selecciona un alumno de la búsqueda";
+    } else {
+      if (!nuevo.nombre.trim()) errors.nombre = "Nombre requerido";
+      if (!nuevo.apellido.trim()) errors.apellido = "Apellido requerido";
+      if (nuevo.dni && !/^\d{8}$/.test(nuevo.dni)) errors.dni = "El DNI debe tener 8 dígitos";
+      if (nuevo.tieneApoderado) {
+        if (!nuevo.tutorNombre.trim()) errors.tutorNombre = "Nombre del apoderado requerido";
+        if (!nuevo.tutorApellido.trim()) errors.tutorApellido = "Apellido del apoderado requerido";
+        if (!nuevo.tutorCelular.trim()) errors.tutorCelular = "Celular del apoderado requerido";
+        if (!nuevo.tutorRelacion.trim()) errors.tutorRelacion = "Relación requerida";
+      }
+    }
+    setStep1Errors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function validateStep2(): boolean {
+    if (!horarioSel) { setStep2Error("Selecciona un horario"); return false; }
+    if (dias.length === 0) { setStep2Error("Selecciona al menos un día de asistencia"); return false; }
+    setStep2Error("");
+    return true;
+  }
+
+  function goNext() {
+    if (step === 1 && validateStep1()) setStep(2);
+    if (step === 2 && validateStep2()) { setStep(3); setPagoCompleto(true); }
+  }
+
+  function goBack() {
+    setSubmitErrors({});
+    setStep(s => s - 1);
+  }
+
+  // ── Submit ──
+
+  async function handleSubmit() {
+    const monto = parseFloat(montoStr);
+    if (isNaN(monto) || monto <= 0) {
+      setSubmitErrors({ montoAbono: ["Ingresa un monto válido mayor a 0"] });
+      return;
+    }
+
+    const fechaNacimiento =
+      nuevo.birthDay && nuevo.birthMonth && nuevo.birthYear
+        ? `${nuevo.birthYear}-${nuevo.birthMonth.padStart(2, "0")}-${nuevo.birthDay.padStart(2, "0")}`
+        : undefined;
+
+    const nuevoAlumnoData: NuevoAlumnoData | undefined =
+      alumnoTab === "nuevo"
+        ? {
+            nombre: nuevo.nombre.trim(),
+            apellido: nuevo.apellido.trim(),
+            dni: nuevo.dni.trim() || undefined,
+            celular: nuevo.celular.trim() || undefined,
+            fechaNacimiento,
+            tieneApoderado: nuevo.tieneApoderado,
+            tutor: nuevo.tieneApoderado
+              ? {
+                  nombre: nuevo.tutorNombre.trim(),
+                  apellido: nuevo.tutorApellido.trim(),
+                  celular: nuevo.tutorCelular.trim(),
+                  celularAdicional: nuevo.tutorCelularAdicional.trim() || undefined,
+                  relacion: nuevo.tutorRelacion.trim(),
+                }
+              : undefined,
+          }
+        : undefined;
+
+    startTransition(async () => {
+      const result = await createMatriculaConPago({
+        alumnoId: alumnoTab === "buscar" ? alumnoSel!.id : undefined,
+        nuevoAlumno: nuevoAlumnoData,
+        idHorario: horarioSel!.id,
+        dias,
+        idDescuento: descuentoId || undefined,
+        montoAbono: monto,
+        metodoPago,
+      });
+
+      if (result.errors) {
+        setSubmitErrors(result.errors);
+        // Si el error es del alumno o DNI, volver al paso 1
+        if (result.errors.dni || result.errors.nombre || result.errors.alumno) setStep(1);
+        // Si el error es del horario, volver al paso 2
+        if (result.errors.idHorario) setStep(2);
+      } else {
+        toast.success("Matrícula registrada correctamente");
+        router.push("/matriculas");
+      }
+    });
+  }
+
+  // ── Render ──
 
   return (
-    <form action={formAction} className="space-y-5">
-      {/* Hidden inputs passed to server action */}
-      {alumno && <input type="hidden" name="idAlumno" value={alumno.id} />}
-      {horario && <input type="hidden" name="idHorario" value={horario.id} />}
-      {dias.map((dia) => (
-        <input key={dia} type="hidden" name="dia" value={dia} />
-      ))}
-      {descuentoId && <input type="hidden" name="idDescuento" value={descuentoId} />}
+    <div>
+      <StepIndicator step={step} />
 
-      {/* ── Sección 1: Alumno ──────────────────────────────────────── */}
-      <section className="rounded-xl border border-zinc-200 bg-white p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <StepBadge n={1} />
-          <h2 className="font-semibold text-zinc-900">Alumno</h2>
-        </div>
-
-        {alumno ? (
-          <div className="flex items-center justify-between rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-3">
-            <div>
-              <p className="font-medium text-zinc-900">{alumno.apellido}, {alumno.nombre}</p>
-              {alumno.dni && (
-                <p className="text-xs font-mono text-zinc-400">DNI {alumno.dni}</p>
+      {/* ── STEP 1: ALUMNO ──────────────────────────────────────────────────── */}
+      {step === 1 && (
+        <div className="space-y-5">
+          {/* Tab selector */}
+          <div className="flex rounded-lg border border-zinc-200 p-1 bg-zinc-50 gap-1 w-fit">
+            <button
+              type="button"
+              onClick={() => { setAlumnoTab("buscar"); setStep1Errors({}); }}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                alumnoTab === "buscar"
+                  ? "bg-white text-zinc-900 shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-700"
               )}
-            </div>
-            <Button type="button" size="icon-sm" variant="ghost" onClick={clearAlumno}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
+            >
+              <UserSearch className="h-4 w-4" />
+              Alumno existente
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAlumnoTab("nuevo"); setStep1Errors({}); }}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                alumnoTab === "nuevo"
+                  ? "bg-white text-zinc-900 shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-700"
+              )}
+            >
+              <UserPlus className="h-4 w-4" />
+              Nuevo alumno
+            </button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
-              <Input
-                placeholder="Buscar por nombre o DNI..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-                className="pl-9"
-              />
-            </div>
 
-            {e.idAlumno && (
-              <p className="text-xs text-destructive">{e.idAlumno[0]}</p>
-            )}
-
-            {searching && (
-              <p className="text-xs text-zinc-400 px-1">Buscando...</p>
-            )}
-
-            {resultados.length > 0 && (
-              <ul className="rounded-lg border border-zinc-200 divide-y divide-zinc-100 overflow-hidden">
-                {resultados.map((a) => (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      onClick={() => selectAlumno(a)}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 transition-colors flex items-center justify-between"
-                    >
-                      <span className="font-medium text-zinc-900">
-                        {a.apellido}, {a.nombre}
-                      </span>
-                      <span className="text-zinc-400 font-mono text-xs">
-                        {a.dni ?? "sin DNI"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {noResults && !searching && (
-              <p className="text-xs text-zinc-400 px-1">
-                Sin resultados. Verifica el nombre o registra el alumno primero.
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── Sección 2: Horario ─────────────────────────────────────── */}
-      <section
-        className={cn(
-          "rounded-xl border border-zinc-200 bg-white p-6 space-y-4 transition-opacity",
-          !alumno && "opacity-40 pointer-events-none"
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <StepBadge n={2} />
-          <h2 className="font-semibold text-zinc-900">Horario</h2>
-        </div>
-
-        {e.idHorario && (
-          <p className="text-xs text-destructive">{e.idHorario[0]}</p>
-        )}
-
-        {horarios.length === 0 ? (
-          <p className="text-sm text-zinc-400 text-center py-4">
-            No hay horarios activos. Crea uno primero en Horarios.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {horarios.map((h) => {
-              const libre = h.aula.capacidad - h.cupoOcupado;
-              const disponible = libre > 0;
-              const selected = horario?.id === h.id;
-
-              return (
-                <button
-                  key={h.id}
-                  type="button"
-                  disabled={!disponible}
-                  onClick={() => selectHorario(h)}
-                  className={cn(
-                    "text-left rounded-lg border p-4 transition-all",
-                    selected
-                      ? "border-zinc-900 bg-zinc-50 ring-2 ring-zinc-900"
-                      : disponible
-                      ? "border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50"
-                      : "border-zinc-100 bg-zinc-50 opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-zinc-900 text-sm leading-tight">
-                          {h.curso.nombre}
-                        </p>
-                        {h.cursoProximo && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0 text-[10px] font-semibold text-blue-600">
-                            <Clock className="h-2.5 w-2.5" />
-                            Próximo
-                          </span>
-                        )}
-                      </div>
-                      {h.curso.nivel && (
-                        <p className="text-xs text-zinc-400">{h.curso.nivel}</p>
-                      )}
-                    </div>
-                    {selected && <CheckCircle2 className="h-4 w-4 text-zinc-900 shrink-0 mt-0.5" />}
+          {/* ── Buscar existente ── */}
+          {alumnoTab === "buscar" && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 space-y-4">
+              {alumnoSel ? (
+                <div className="flex items-center justify-between rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-3">
+                  <div>
+                    <p className="font-semibold text-zinc-900">{alumnoSel.apellido}, {alumnoSel.nombre}</p>
+                    {alumnoSel.dni && <p className="text-xs font-mono text-zinc-400">DNI {alumnoSel.dni}</p>}
+                    {!alumnoSel.habilitado && (
+                      <p className="text-xs text-amber-600 mt-0.5">Sin habilitar · tiene pagos pendientes</p>
+                    )}
                   </div>
-
-                  <p className="text-xs text-zinc-500 mb-2">
-                    {h.docente.apellido}, {h.docente.nombre} · {h.aula.nombre}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-1 mb-2">
-                    {[...h.dias]
-                      .sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b))
-                      .map((d) => (
-                        <Badge key={d} variant="outline" className="text-xs px-1.5 py-0">
-                          {DIA_ABREV[d] ?? d}
-                        </Badge>
+                  <Button type="button" size="icon-sm" variant="ghost" onClick={clearAlumno}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Buscar por nombre o DNI</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+                    <Input
+                      placeholder="Escribe al menos 2 caracteres..."
+                      value={query}
+                      onChange={e => setQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  {searching && <p className="text-xs text-zinc-400 px-1">Buscando...</p>}
+                  {results.length > 0 && (
+                    <ul className="rounded-lg border border-zinc-200 divide-y divide-zinc-100 overflow-hidden">
+                      {results.map(a => (
+                        <li key={a.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectAlumno(a)}
+                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50 transition-colors flex items-center justify-between"
+                          >
+                            <span className="font-medium text-zinc-900">{a.apellido}, {a.nombre}</span>
+                            <span className="text-zinc-400 font-mono text-xs">{a.dni ?? "sin DNI"}</span>
+                          </button>
+                        </li>
                       ))}
-                    <span className="text-xs text-zinc-400 font-mono ml-1">
-                      {h.horaInicio}–{h.horaFin}
-                    </span>
-                  </div>
-
-                  {h.cursoProximo && (
-                    <p className="text-xs text-blue-600 font-medium mb-2">
-                      Apertura:{" "}
-                      {new Date(h.cursoFechaInicio + "T00:00:00").toLocaleDateString("es-PE", {
-                        day: "numeric", month: "long", year: "numeric",
-                      })}
+                    </ul>
+                  )}
+                  {noResults && !searching && (
+                    <p className="text-xs text-zinc-400 px-1">
+                      Sin resultados. Prueba con el tab &quot;Nuevo alumno&quot; para registrarlo.
                     </p>
                   )}
-
-                  <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
-                    <span className="text-sm font-bold text-zinc-900">
-                      S/{h.curso.precioMensual.toFixed(2)}/mes
-                    </span>
-                    <span
-                      className={cn(
-                        "flex items-center gap-1 text-xs font-medium",
-                        disponible ? "text-green-600" : "text-red-500"
-                      )}
-                    >
-                      <Users className="h-3 w-3" />
-                      {libre}/{h.aula.capacidad} libres
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ── Sección 3: Detalles + Resumen ─────────────────────────── */}
-      {horario && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-6 space-y-5">
-          <div className="flex items-center gap-2">
-            <StepBadge n={3} />
-            <h2 className="font-semibold text-zinc-900">Detalles y confirmación</h2>
-          </div>
-
-          {/* Días de asistencia */}
-          <div className="space-y-2">
-            <Label>Días de asistencia *</Label>
-            <div className="flex flex-wrap gap-2">
-              {DIA_ORDER.filter((d) => horario.dias.includes(d)).map((dia) => (
-                <button
-                  key={dia}
-                  type="button"
-                  onClick={() => toggleDia(dia)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
-                    dias.includes(dia)
-                      ? "bg-zinc-900 text-white border-zinc-900"
-                      : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
+                  {step1Errors.alumno && (
+                    <p className="text-xs text-destructive">{step1Errors.alumno}</p>
                   )}
-                >
-                  {dia}
-                </button>
-              ))}
-            </div>
-            {e.dias && <p className="text-xs text-destructive">{e.dias[0]}</p>}
-          </div>
-
-          {/* Descuento */}
-          {descuentos.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="descuento-select">Descuento</Label>
-              <select
-                id="descuento-select"
-                className={SELECT_CLASS}
-                value={descuentoId}
-                onChange={(e) => setDescuentoId(e.target.value)}
-              >
-                <option value="">Sin descuento</option>
-                {descuentos.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nombre} —{" "}
-                    {d.tipo === "porcentaje" ? `${d.valor}%` : `S/${d.valor.toFixed(2)}`}
-                  </option>
-                ))}
-              </select>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Resumen de precio */}
-          <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-4 space-y-2 text-sm">
-            <div className="flex justify-between text-zinc-600">
-              <span>Precio base ({horario.curso.nombre})</span>
-              <span className="font-mono">S/{precioBase.toFixed(2)}</span>
-            </div>
-            {descuentoSel && (
-              <div className="flex justify-between text-green-600">
-                <span>Descuento · {descuentoSel.nombre}</span>
-                <span className="font-mono">−S/{descuentoImporte.toFixed(2)}</span>
+          {/* ── Nuevo alumno inline ── */}
+          {alumnoTab === "nuevo" && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 space-y-5">
+
+              {/* Datos del alumno */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Datos del alumno</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Nombre *</Label>
+                    <Input
+                      value={nuevo.nombre}
+                      onChange={e => setN("nombre", e.target.value)}
+                      placeholder="Juan"
+                    />
+                    {step1Errors.nombre && <p className="text-xs text-destructive">{step1Errors.nombre}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Apellido *</Label>
+                    <Input
+                      value={nuevo.apellido}
+                      onChange={e => setN("apellido", e.target.value)}
+                      placeholder="Pérez"
+                    />
+                    {step1Errors.apellido && <p className="text-xs text-destructive">{step1Errors.apellido}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>DNI</Label>
+                    <Input
+                      value={nuevo.dni}
+                      onChange={e => setN("dni", e.target.value)}
+                      placeholder="12345678"
+                      maxLength={8}
+                    />
+                    {step1Errors.dni && <p className="text-xs text-destructive">{step1Errors.dni}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Celular</Label>
+                    <Input
+                      value={nuevo.celular}
+                      onChange={e => setN("celular", e.target.value)}
+                      placeholder="987654321"
+                      maxLength={20}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Fecha de nacimiento</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <select aria-label="Día" className={SELECT_CLASS} value={nuevo.birthDay}
+                      onChange={e => setN("birthDay", e.target.value)}>
+                      <option value="">Día</option>
+                      {Array.from({ length: maxDays }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                    <select aria-label="Mes" className={SELECT_CLASS} value={nuevo.birthMonth}
+                      onChange={e => setN("birthMonth", e.target.value)}>
+                      <option value="">Mes</option>
+                      {MESES.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                    </select>
+                    <select aria-label="Año" className={SELECT_CLASS} value={nuevo.birthYear}
+                      onChange={e => setN("birthYear", e.target.value)}>
+                      <option value="">Año</option>
+                      {ANIOS.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between font-bold text-zinc-900 text-base pt-2 border-t border-zinc-200">
-              <span>Total mensual</span>
-              <span className="font-mono">S/{precioFinal.toFixed(2)}</span>
+
+              {/* Apoderado toggle */}
+              <div className="border-t border-zinc-100 pt-4 space-y-3">
+                <label className={cn(
+                  "flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors select-none",
+                  nuevo.tieneApoderado ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+                )}>
+                  <input
+                    type="checkbox"
+                    checked={nuevo.tieneApoderado}
+                    onChange={e => setN("tieneApoderado", e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900 leading-tight">El alumno tiene apoderado</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Desactívalo si el alumno es adulto y se matricula por cuenta propia.
+                    </p>
+                  </div>
+                </label>
+
+                {nuevo.tieneApoderado && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Apoderado</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Nombre *</Label>
+                        <Input value={nuevo.tutorNombre} onChange={e => setN("tutorNombre", e.target.value)} placeholder="María" />
+                        {step1Errors.tutorNombre && <p className="text-xs text-destructive">{step1Errors.tutorNombre}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Apellido *</Label>
+                        <Input value={nuevo.tutorApellido} onChange={e => setN("tutorApellido", e.target.value)} placeholder="Pérez" />
+                        {step1Errors.tutorApellido && <p className="text-xs text-destructive">{step1Errors.tutorApellido}</p>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Celular *</Label>
+                        <Input value={nuevo.tutorCelular} onChange={e => setN("tutorCelular", e.target.value)} placeholder="987654321" />
+                        {step1Errors.tutorCelular && <p className="text-xs text-destructive">{step1Errors.tutorCelular}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Celular adicional</Label>
+                        <Input value={nuevo.tutorCelularAdicional} onChange={e => setN("tutorCelularAdicional", e.target.value)} placeholder="987654321" />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Relación *</Label>
+                      <Input value={nuevo.tutorRelacion} onChange={e => setN("tutorRelacion", e.target.value)} placeholder="Madre, Padre, Tutor legal..." />
+                      {step1Errors.tutorRelacion && <p className="text-xs text-destructive">{step1Errors.tutorRelacion}</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {submitErrors.dni && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{submitErrors.dni[0]}</p>
+              )}
             </div>
-            <p className="text-xs text-zinc-400">
-              Se genera el primer mes de pago automáticamente al matricular.
-            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── STEP 2: HORARIO ─────────────────────────────────────────────────── */}
+      {step === 2 && (
+        <div className="space-y-4">
+          {step2Error && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{step2Error}</p>
+          )}
+          {submitErrors.idHorario && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{submitErrors.idHorario[0]}</p>
+          )}
+
+          {horarios.length === 0 ? (
+            <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center">
+              <p className="text-sm text-zinc-400">No hay horarios activos. Crea uno primero en Horarios.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {horarios.map(h => {
+                const libre = h.aula.capacidad - h.cupoOcupado;
+                const disponible = libre > 0;
+                const selected = horarioSel?.id === h.id;
+                return (
+                  <button
+                    key={h.id}
+                    type="button"
+                    disabled={!disponible}
+                    onClick={() => selectHorario(h)}
+                    className={cn(
+                      "text-left rounded-xl border p-4 transition-all",
+                      selected ? "border-zinc-900 bg-zinc-50 ring-2 ring-zinc-900"
+                        : disponible ? "border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50"
+                        : "border-zinc-100 bg-zinc-50 opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-semibold text-zinc-900 text-sm leading-tight">{h.curso.nombre}</p>
+                          {h.cursoProximo && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0 text-[10px] font-semibold text-blue-600">
+                              <Clock className="h-2.5 w-2.5" /> Próximo
+                            </span>
+                          )}
+                        </div>
+                        {h.curso.nivel && <p className="text-xs text-zinc-400">{h.curso.nivel}</p>}
+                      </div>
+                      {selected && <CheckCircle2 className="h-4 w-4 text-zinc-900 shrink-0 mt-0.5" />}
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-2">
+                      {h.docente.apellido}, {h.docente.nombre} · {h.aula.nombre}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1 mb-2">
+                      {[...h.dias].sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b)).map(d => (
+                        <Badge key={d} variant="outline" className="text-xs px-1.5 py-0">{DIA_ABREV[d] ?? d}</Badge>
+                      ))}
+                      <span className="text-xs text-zinc-400 font-mono ml-1">{h.horaInicio}–{h.horaFin}</span>
+                    </div>
+                    {h.cursoProximo && (
+                      <p className="text-xs text-blue-600 font-medium mb-2">
+                        Apertura: {new Date(h.cursoFechaInicio + "T00:00:00").toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" })}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
+                      <span className="text-sm font-bold text-zinc-900">S/{h.curso.precioMensual.toFixed(2)}/mes</span>
+                      <span className={cn("flex items-center gap-1 text-xs font-medium", disponible ? "text-green-600" : "text-red-500")}>
+                        <Users className="h-3 w-3" /> {libre}/{h.aula.capacidad} libres
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Días de asistencia */}
+          {horarioSel && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3">
+              <Label>Días de asistencia *</Label>
+              <div className="flex flex-wrap gap-2">
+                {DIA_ORDER.filter(d => horarioSel.dias.includes(d)).map(dia => (
+                  <button
+                    key={dia}
+                    type="button"
+                    onClick={() => toggleDia(dia)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                      dias.includes(dia)
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
+                    )}
+                  >
+                    {dia}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── STEP 3: PAGO ────────────────────────────────────────────────────── */}
+      {step === 3 && (
+        <div className="space-y-5">
+          {/* Resumen */}
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 space-y-2 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">Resumen</p>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Alumno</span>
+              <span className="font-medium text-zinc-900">
+                {alumnoTab === "buscar"
+                  ? `${alumnoSel!.apellido}, ${alumnoSel!.nombre}`
+                  : `${nuevo.apellido.trim()}, ${nuevo.nombre.trim()}`}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Curso</span>
+              <span className="font-medium text-zinc-900">{horarioSel!.curso.nombre}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Horario</span>
+              <span className="font-medium text-zinc-900">
+                {[...horarioSel!.dias].sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b)).map(d => DIA_ABREV[d]).join("/")} · {horarioSel!.horaInicio}–{horarioSel!.horaFin}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Días inscritos</span>
+              <span className="font-medium text-zinc-900">
+                {dias.sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b)).join(", ")}
+              </span>
+            </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={!canSubmit || submitting}>
-            {submitting ? "Registrando..." : "Registrar matrícula"}
-          </Button>
-        </section>
-      )}
-    </form>
-  );
-}
+          {/* Precio y descuento */}
+          <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Precio y descuento</p>
+            {descuentos.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Descuento</Label>
+                <select
+                  className={SELECT_CLASS}
+                  value={descuentoId}
+                  onChange={e => setDescuentoId(e.target.value)}
+                >
+                  <option value="">Sin descuento</option>
+                  {descuentos.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.nombre} — {d.tipo === "porcentaje" ? `${d.valor}%` : `S/${d.valor.toFixed(2)}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between text-zinc-600">
+                <span>Precio base</span>
+                <span className="font-mono">S/{precioBase.toFixed(2)}</span>
+              </div>
+              {descuentoSel && (
+                <div className="flex justify-between text-green-600">
+                  <span>Descuento · {descuentoSel.nombre}</span>
+                  <span className="font-mono">−S/{descuentoImporte.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-zinc-900 text-base pt-2 border-t border-zinc-100">
+                <span>Total mensual</span>
+                <span className="font-mono">S/{precioFinal.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
 
-function StepBadge({ n }: { n: number }) {
-  return (
-    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white shrink-0">
-      {n}
-    </span>
+          {/* Pago inicial */}
+          <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Pago inicial</p>
+
+            <div className="space-y-1.5">
+              <Label>Método de pago *</Label>
+              <div className="flex gap-2">
+                {(["efectivo", "transferencia"] as const).map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMetodoPago(m)}
+                    className={cn(
+                      "flex-1 rounded-lg border py-2.5 text-sm font-medium transition-colors capitalize",
+                      metodoPago === m
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className={cn(
+                "flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors select-none",
+                pagoCompleto ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+              )}>
+                <input
+                  type="checkbox"
+                  checked={pagoCompleto}
+                  onChange={e => setPagoCompleto(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
+                />
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 leading-tight">Pago completo del mes</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Abona S/{precioFinal.toFixed(2)} y el alumno queda habilitado.</p>
+                </div>
+              </label>
+
+              {!pagoCompleto && (
+                <div className="space-y-1.5">
+                  <Label>Monto a abonar *</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-mono">S/</span>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      max={precioFinal}
+                      step="0.01"
+                      placeholder={precioFinal.toFixed(2)}
+                      value={montoStr}
+                      onChange={e => setMontoStr(e.target.value)}
+                      className="pl-9 font-mono"
+                    />
+                  </div>
+                  {montoStr && parseFloat(montoStr) < precioFinal && parseFloat(montoStr) > 0 && (
+                    <p className="text-xs text-amber-600">
+                      Quedará un saldo pendiente de S/{(precioFinal - parseFloat(montoStr)).toFixed(2)} · el alumno permanecerá sin habilitar hasta saldar.
+                    </p>
+                  )}
+                  {submitErrors.montoAbono && (
+                    <p className="text-xs text-destructive">{submitErrors.montoAbono[0]}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {submitErrors._ && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{submitErrors._[0]}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Navigation ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mt-8 pt-5 border-t border-zinc-100">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={step === 1 ? () => router.push("/matriculas") : goBack}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          {step === 1 ? "Cancelar" : "Atrás"}
+        </Button>
+
+        {step < 3 ? (
+          <Button type="button" onClick={goNext}>
+            Siguiente
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending}
+          >
+            {isPending ? "Registrando..." : "Registrar matrícula"}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
