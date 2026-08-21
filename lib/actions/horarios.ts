@@ -58,8 +58,11 @@ export async function getHorarioSelectData(): Promise<HorarioSelectData> {
   };
 }
 
-export async function getNextNumeroGrupo(): Promise<number> {
-  const all = await prisma.horario.findMany({ select: { numeroGrupo: true } });
+export async function getNextNumeroGrupo(idCurso: string): Promise<number> {
+  const all = await prisma.horario.findMany({
+    where: { idCurso },
+    select: { numeroGrupo: true },
+  });
   const nums = all.map((h) => parseInt(h.numeroGrupo, 10)).filter((n) => !isNaN(n));
   return nums.length > 0 ? Math.max(...nums) + 1 : 1;
 }
@@ -101,16 +104,16 @@ export async function createHorario(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Resolver número de grupo
+  // Resolver número de grupo (único por curso)
   const autoNumero = formData.get("autoNumero") === "true";
   let numeroGrupo: string;
 
   if (autoNumero) {
-    numeroGrupo = String(await getNextNumeroGrupo());
+    numeroGrupo = String(await getNextNumeroGrupo(parsed.data.idCurso));
   } else {
     const raw = formData.get("numeroGrupo");
     const num = z.coerce.number().int().positive("Debe ser un número entero positivo").safeParse(raw);
-    if (!num.success) return { errors: { numeroGrupo: num.error.errors.map((e) => e.message) } };
+    if (!num.success) return { errors: { numeroGrupo: num.error.issues.map((e) => e.message) } };
     numeroGrupo = String(num.data);
   }
 
@@ -121,7 +124,7 @@ export async function createHorario(
     });
   } catch (e: unknown) {
     if ((e as { code?: string }).code === "P2002") {
-      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe. Elige otro número.`] } };
+      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe en este curso. Elige otro número.`] } };
     }
     throw e;
   }
@@ -148,10 +151,10 @@ export async function updateHorario(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Número de grupo para edición (siempre manual)
+  // Número de grupo para edición (siempre manual, único por curso)
   const raw = formData.get("numeroGrupo");
   const num = z.coerce.number().int().positive("Debe ser un número entero positivo").safeParse(raw);
-  if (!num.success) return { errors: { numeroGrupo: num.error.errors.map((e) => e.message) } };
+  if (!num.success) return { errors: { numeroGrupo: num.error.issues.map((e) => e.message) } };
   const numeroGrupo = String(num.data);
 
   const { dias, horaInicio, horaFin, ...rest } = parsed.data;
@@ -168,13 +171,14 @@ export async function updateHorario(
     });
   } catch (e: unknown) {
     if ((e as { code?: string }).code === "P2002") {
-      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe. Elige otro número.`] } };
+      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe en este curso. Elige otro número.`] } };
     }
     throw e;
   }
   revalidateTag("horarios");
   return { message: "ok" };
 }
+
 
 export async function toggleHorarioActivo(id: string, activo: boolean) {
   await prisma.horario.update({ where: { id }, data: { activo: !activo } });

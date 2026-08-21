@@ -160,20 +160,30 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [handled, setHandled] = useState(false);
 
-  // Grupo auto/manual
+  // Grupo auto/manual (numeración por curso)
   const [autoNumero, setAutoNumero] = useState(true);
   const [nextNumero, setNextNumero] = useState<number | null>(null);
+  const [selectedCurso, setSelectedCurso] = useState(horario?.idCurso ?? "");
   const [, startFetch] = useTransition();
 
+  // Cuando se abre el diálogo para nuevo horario, resetear estado
   useEffect(() => {
     if (open && !horario) {
       setAutoNumero(true);
+      setSelectedCurso("");
+      setNextNumero(null);
+    }
+  }, [open, horario]);
+
+  // Cuando cambia el curso seleccionado y el auto está activo, buscar siguiente número
+  useEffect(() => {
+    if (!horario && autoNumero && selectedCurso) {
       startFetch(async () => {
-        const n = await getNextNumeroGrupo();
+        const n = await getNextNumeroGrupo(selectedCurso);
         setNextNumero(n);
       });
     }
-  }, [open, horario]);
+  }, [selectedCurso, autoNumero, horario]);
 
   const [fmt, setFmt] = useState<TimeFormat>(readStoredFmt);
   const [inicio, setInicio] = useState<TimeParts>(() =>
@@ -214,6 +224,7 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
               name="idCurso"
               defaultValue={horario?.idCurso ?? ""}
               className={SELECT_CLASS}
+              onChange={(e) => setSelectedCurso(e.target.value)}
             >
               <option value="">Selecciona un curso</option>
               {selectData.cursos.map((c) => (
@@ -243,12 +254,14 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
                 <div>
                   <p className="text-sm font-medium text-zinc-900 leading-tight">
                     Asignar número de grupo automáticamente
-                    {autoNumero && nextNumero !== null && (
+                    {autoNumero && nextNumero !== null && selectedCurso && (
                       <span className="ml-2 font-mono text-zinc-500">→ Grupo {nextNumero}</span>
                     )}
                   </p>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Se asigna el siguiente número disponible.
+                    {selectedCurso
+                      ? "Se asigna el siguiente número disponible para este curso."
+                      : "Selecciona primero un curso."}
                   </p>
                 </div>
               </label>

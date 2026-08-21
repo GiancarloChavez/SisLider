@@ -108,7 +108,7 @@ model Horario {
   idCurso       String   @map("id_curso")
   idDocente     String   @map("id_docente")
   idAula        String   @map("id_aula")
-  numeroGrupo   String   @unique @map("numero_grupo") @db.VarChar(50)
+  numeroGrupo   String   @map("numero_grupo") @db.VarChar(50)
   precioMensual Decimal  @map("precio_mensual") @db.Decimal(10, 2)
   horaInicio    DateTime @map("hora_inicio") @db.Time
   horaFin       DateTime @map("hora_fin") @db.Time
@@ -122,6 +122,7 @@ model Horario {
   matriculas     Matricula[]
   recuperaciones Recuperacion[]
 
+  @@unique([idCurso, numeroGrupo])
   @@map("horarios")
 }
 
