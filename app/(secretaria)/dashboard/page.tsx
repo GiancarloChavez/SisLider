@@ -7,7 +7,7 @@ import { DashboardCharts } from "./DashboardCharts";
 import type {
   IngresosMesData, EstadoPagoData, MatriculasCursoData, MesPendienteData,
 } from "./DashboardCharts";
-import { ClasesCalendar } from "../clases/ClasesCalendar";
+import { CalendarView } from "../clases/CalendarView";
 import { ClasesView } from "../clases/ClasesView";
 import { getHorariosCalendario, getCursosConHorarios } from "@/lib/actions/clases";
 
@@ -129,7 +129,7 @@ const getDashboardData = unstable_cache(
 
 export const dynamic = "force-dynamic";
 
-type Tab = "dashboard" | "clases";
+type Tab = "dashboard" | "clases" | "calendario";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -141,11 +141,14 @@ export default async function DashboardPage({
   if (process.env.NEXT_PHASE === "phase-production-build") return null;
 
   const params = await searchParams;
-  const activeTab: Tab = params.tab === "clases" ? "clases" : "dashboard";
+  const activeTab: Tab =
+    params.tab === "clases" ? "clases"
+    : params.tab === "calendario" ? "calendario"
+    : "dashboard";
 
   const [data, horarios, cursosClases] = await Promise.all([
     getDashboardData(),
-    getHorariosCalendario(),
+    activeTab === "calendario" ? getHorariosCalendario() : Promise.resolve([]),
     activeTab === "clases" ? getCursosConHorarios() : Promise.resolve(null),
   ]);
 
@@ -170,12 +173,13 @@ export default async function DashboardPage({
       <div className="border-b border-zinc-200 -mb-2">
         <div className="flex gap-0">
           {([
-            { key: "dashboard", label: "Dashboard" },
-            { key: "clases",    label: "Clases" },
+            { key: "dashboard",  label: "Dashboard" },
+            { key: "clases",     label: "Clases" },
+            { key: "calendario", label: "Calendario" },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
             <a
               key={key}
-              href={key === "dashboard" ? "/dashboard" : "/dashboard?tab=clases"}
+              href={key === "dashboard" ? "/dashboard" : `/dashboard?tab=${key}`}
               className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === key
                   ? "border-zinc-900 text-zinc-900"
@@ -201,31 +205,22 @@ export default async function DashboardPage({
             </p>
           </div>
 
-          {/* ── Calendario + KPI sidebar ──────────────────────────────────── */}
-          <div className="flex gap-4 items-stretch h-[480px]">
-
-            {/* Calendario — ocupa la mayor parte */}
-            <div className="flex-1 min-w-0 flex flex-col">
-              <ClasesCalendar horarios={horarios} title="Horario semanal" fillHeight />
-            </div>
-
-            {/* KPI cards — columna lateral, misma altura que el calendario */}
-            <div className="w-48 shrink-0 flex flex-col gap-4">
-              {kpiCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-                <div
-                  key={label}
-                  className="flex-1 rounded-xl bg-white border border-zinc-200 p-4 shadow-sm flex flex-col justify-center"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-zinc-500 leading-tight">{label}</span>
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-md ${iconBg} ${iconColor}`}>
-                      <Icon className="h-3 w-3" />
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-zinc-900 tabular-nums">{value}</p>
+          {/* ── KPI cards ─────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {kpiCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+              <div
+                key={label}
+                className="rounded-xl bg-white border border-zinc-200 p-5 shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-zinc-500 leading-tight">{label}</span>
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
                 </div>
-              ))}
-            </div>
+                <p className="text-2xl font-bold text-zinc-900 tabular-nums">{value}</p>
+              </div>
+            ))}
           </div>
 
           {/* ── Charts ───────────────────────────────────────────────────────── */}
@@ -263,6 +258,13 @@ export default async function DashboardPage({
             />
           )}
         </>
+      )}
+
+      {/* ── CALENDARIO TAB ───────────────────────────────────────────────────── */}
+      {activeTab === "calendario" && (
+        <div className="pt-3">
+          <CalendarView horarios={horarios} />
+        </div>
       )}
     </div>
   );
