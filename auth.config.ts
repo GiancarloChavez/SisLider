@@ -6,7 +6,7 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn    = !!auth?.user;
       const isLoginPage   = nextUrl.pathname === "/login";
-      const isDocenteRoute = nextUrl.pathname.startsWith("/docente");
+      const isDocenteRoute = nextUrl.pathname === "/docente" || nextUrl.pathname.startsWith("/docente/");
       const rol           = (auth as any)?.user?.rol as string | undefined;
 
       // Unauthenticated → login
