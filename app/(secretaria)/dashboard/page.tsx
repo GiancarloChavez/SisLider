@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
@@ -177,7 +178,7 @@ export default async function DashboardPage({
             { key: "clases",     label: "Clases" },
             { key: "calendario", label: "Calendario" },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
-            <a
+            <Link
               key={key}
               href={key === "dashboard" ? "/dashboard" : `/dashboard?tab=${key}`}
               className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -187,7 +188,7 @@ export default async function DashboardPage({
               }`}
             >
               {label}
-            </a>
+            </Link>
           ))}
         </div>
       </div>

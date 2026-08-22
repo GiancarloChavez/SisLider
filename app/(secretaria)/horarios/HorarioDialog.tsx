@@ -160,13 +160,11 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [handled, setHandled] = useState(false);
 
-  // Grupo auto/manual (numeración por curso)
   const [autoNumero, setAutoNumero] = useState(true);
   const [nextNumero, setNextNumero] = useState<number | null>(null);
   const [selectedCurso, setSelectedCurso] = useState(horario?.idCurso ?? "");
   const [, startFetch] = useTransition();
 
-  // Cuando se abre el diálogo para nuevo horario, resetear estado
   useEffect(() => {
     if (open && !horario) {
       setAutoNumero(true);
@@ -175,7 +173,6 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
     }
   }, [open, horario]);
 
-  // Cuando cambia el curso seleccionado y el auto está activo, buscar siguiente número
   useEffect(() => {
     if (!horario && autoNumero && selectedCurso) {
       startFetch(async () => {
@@ -204,19 +201,21 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
   useEffect(() => {
     if (state.message === "ok" && !handled) {
       setHandled(true);
-      toast.success(horario ? "Horario actualizado" : "Horario creado");
+      toast.success(horario ? "Grupo actualizado" : "Grupo creado");
       onClose();
     }
   }, [state.message, handled, horario, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{horario ? "Editar horario" : "Nuevo horario"}</DialogTitle>
+          <DialogTitle>{horario ? "Editar grupo" : "Nuevo grupo"}</DialogTitle>
         </DialogHeader>
 
         <form action={formAction} className="space-y-4">
+
+          {/* ── Row 1: Curso (full width) ─────────────────────────────── */}
           <div className="space-y-1">
             <Label htmlFor="idCurso">Curso *</Label>
             <select
@@ -236,112 +235,118 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             )}
           </div>
 
-          {/* ── Número de grupo ───────────────────────────────────────── */}
-          <div className="space-y-2">
-            {!horario && (
-              <label className={cn(
-                "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors select-none",
-                autoNumero ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
-              )}>
-                <input
-                  type="checkbox"
-                  name="autoNumero"
-                  value="true"
-                  checked={autoNumero}
-                  onChange={(e) => setAutoNumero(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
-                />
-                <div>
-                  <p className="text-sm font-medium text-zinc-900 leading-tight">
-                    Asignar número de grupo automáticamente
-                    {autoNumero && nextNumero !== null && selectedCurso && (
-                      <span className="ml-2 font-mono text-zinc-500">→ Grupo {nextNumero}</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    {selectedCurso
-                      ? "Se asigna el siguiente número disponible para este curso."
-                      : "Selecciona primero un curso."}
-                  </p>
+          {/* ── Row 2: Docente | Aula ─────────────────────────────────── */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="idDocente">Docente *</Label>
+              <select
+                id="idDocente"
+                name="idDocente"
+                defaultValue={horario?.idDocente ?? ""}
+                className={SELECT_CLASS}
+              >
+                <option value="">Selecciona un docente</option>
+                {selectData.docentes.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+              {state.errors?.idDocente && (
+                <p className="text-xs text-destructive">{state.errors.idDocente[0]}</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="idAula">Aula *</Label>
+              <select
+                id="idAula"
+                name="idAula"
+                defaultValue={horario?.idAula ?? ""}
+                className={SELECT_CLASS}
+              >
+                <option value="">Selecciona un aula</option>
+                {selectData.aulas.map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </select>
+              {state.errors?.idAula && (
+                <p className="text-xs text-destructive">{state.errors.idAula[0]}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Row 3: Número de grupo | Precio mensual ───────────────── */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Número de grupo */}
+            <div className="space-y-2">
+              {!horario && (
+                <label className={cn(
+                  "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors select-none",
+                  autoNumero ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+                )}>
+                  <input
+                    type="checkbox"
+                    name="autoNumero"
+                    value="true"
+                    checked={autoNumero}
+                    onChange={(e) => setAutoNumero(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-900 leading-tight">
+                      Número automático
+                      {autoNumero && nextNumero !== null && selectedCurso && (
+                        <span className="ml-1.5 font-mono text-zinc-500">→ {nextNumero}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-zinc-400 mt-0.5 leading-snug">
+                      {selectedCurso
+                        ? "Siguiente disponible para este curso."
+                        : "Selecciona primero un curso."}
+                    </p>
+                  </div>
+                </label>
+              )}
+
+              {(!autoNumero || horario) && (
+                <div className="space-y-1">
+                  <Label htmlFor="numeroGrupo">
+                    {horario ? "Número de grupo" : "Número de grupo manual *"}
+                  </Label>
+                  <Input
+                    id="numeroGrupo"
+                    name="numeroGrupo"
+                    type="number"
+                    min="1"
+                    step="1"
+                    defaultValue={horario?.numeroGrupo ?? ""}
+                    placeholder="Ej: 15"
+                  />
+                  {state.errors?.numeroGrupo && (
+                    <p className="text-xs text-destructive">{state.errors.numeroGrupo[0]}</p>
+                  )}
                 </div>
-              </label>
-            )}
+              )}
+            </div>
 
-            {(!autoNumero || horario) && (
-              <div className="space-y-1">
-                <Label htmlFor="numeroGrupo">
-                  {horario ? "Número de grupo" : "Número de grupo manual *"}
-                </Label>
-                <Input
-                  id="numeroGrupo"
-                  name="numeroGrupo"
-                  type="number"
-                  min="1"
-                  step="1"
-                  defaultValue={horario?.numeroGrupo ?? ""}
-                  placeholder="Ej: 15"
-                />
-                {state.errors?.numeroGrupo && (
-                  <p className="text-xs text-destructive">{state.errors.numeroGrupo[0]}</p>
-                )}
-              </div>
-            )}
+            {/* Precio mensual */}
+            <div className="space-y-1">
+              <Label htmlFor="precioMensual">Precio mensual (S/) *</Label>
+              <Input
+                id="precioMensual"
+                name="precioMensual"
+                type="number"
+                step="0.01"
+                min="0.01"
+                defaultValue={horario?.precioMensual ?? ""}
+                placeholder="0.00"
+              />
+              {state.errors?.precioMensual && (
+                <p className="text-xs text-destructive">{state.errors.precioMensual[0]}</p>
+              )}
+            </div>
           </div>
 
-          {/* ── Precio mensual ────────────────────────────────────────── */}
-          <div className="space-y-1">
-            <Label htmlFor="precioMensual">Precio mensual (S/) *</Label>
-            <Input
-              id="precioMensual"
-              name="precioMensual"
-              type="number"
-              step="0.01"
-              min="0.01"
-              defaultValue={horario?.precioMensual ?? ""}
-              placeholder="0.00"
-            />
-            {state.errors?.precioMensual && (
-              <p className="text-xs text-destructive">{state.errors.precioMensual[0]}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="idDocente">Docente *</Label>
-            <select
-              id="idDocente"
-              name="idDocente"
-              defaultValue={horario?.idDocente ?? ""}
-              className={SELECT_CLASS}
-            >
-              <option value="">Selecciona un docente</option>
-              {selectData.docentes.map((d) => (
-                <option key={d.id} value={d.id}>{d.label}</option>
-              ))}
-            </select>
-            {state.errors?.idDocente && (
-              <p className="text-xs text-destructive">{state.errors.idDocente[0]}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="idAula">Aula *</Label>
-            <select
-              id="idAula"
-              name="idAula"
-              defaultValue={horario?.idAula ?? ""}
-              className={SELECT_CLASS}
-            >
-              <option value="">Selecciona un aula</option>
-              {selectData.aulas.map((a) => (
-                <option key={a.id} value={a.id}>{a.label}</option>
-              ))}
-            </select>
-            {state.errors?.idAula && (
-              <p className="text-xs text-destructive">{state.errors.idAula[0]}</p>
-            )}
-          </div>
-
-          {/* ── Time pickers ───────────────────────────────────────────── */}
+          {/* ── Row 4: Horario (inicio | fin) ────────────────────────── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Horario *</Label>
@@ -355,7 +360,6 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
                 {fmt === "24" ? "24 h" : "12 h"}
               </button>
             </div>
-
             <div className="grid grid-cols-2 gap-6 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
               <TimeField
                 label="Inicio"
@@ -376,8 +380,8 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             </div>
           </div>
 
-          {/* ── Período del grupo (opcional) ─────────────────────────── */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* ── Row 5: Período (fecha inicio | fecha fin) ────────────── */}
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label htmlFor="fechaInicio">Fecha de inicio</Label>
               <input
@@ -400,6 +404,7 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             </div>
           </div>
 
+          {/* ── Row 6: Días (full width) ──────────────────────────────── */}
           <div className="space-y-2">
             <Label>Días *</Label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">

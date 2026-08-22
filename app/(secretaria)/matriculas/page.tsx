@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCursosConMatriculas } from "@/lib/actions/matriculas";
@@ -70,7 +71,7 @@ export default async function MatriculasPage({
             { key: "matriculas", label: "Matrículas" },
             { key: "alumnos", label: "Alumnos" },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
-            <a
+            <Link
               key={key}
               href={`/matriculas${key !== "matriculas" ? `?tab=${key}` : ""}`}
               className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -80,7 +81,7 @@ export default async function MatriculasPage({
               }`}
             >
               {label}
-            </a>
+            </Link>
           ))}
         </div>
       </div>

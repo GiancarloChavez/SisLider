@@ -1,7 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { CursosTable } from "./CursosTable";
-import { HorariosTable } from "../horarios/HorariosTable";
+import { CursosGruposView } from "./CursosGruposView";
 import type { CursoSerialized } from "@/lib/actions/cursos";
 import type { HorarioSerialized, HorarioSelectData } from "@/lib/actions/horarios";
 
@@ -74,65 +73,20 @@ const getSelectData = unstable_cache(
 
 export const dynamic = "force-dynamic";
 
-type Tab = "cursos" | "horarios";
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function CursosPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
+export default async function CursosPage() {
   if (process.env.NEXT_PHASE === "phase-production-build") return null;
 
-  const params = await searchParams;
-  const activeTab: Tab = params.tab === "horarios" ? "horarios" : "cursos";
-
-  const [cursos, horariosResult] = await Promise.all([
+  const [cursos, horarios, selectData] = await Promise.all([
     getCursos(),
-    activeTab === "horarios"
-      ? Promise.all([getHorarios(), getSelectData()])
-      : Promise.resolve(null),
+    getHorarios(),
+    getSelectData(),
   ]);
 
   return (
     <div className="space-y-4">
-
-      {/* ── Tabs ──────────────────────────────────────────────────────────────── */}
-      <div className="border-b border-zinc-200 -mb-2">
-        <div className="flex gap-0">
-          {([
-            { key: "cursos",   label: "Cursos" },
-            { key: "horarios", label: "Horarios" },
-          ] as { key: Tab; label: string }[]).map(({ key, label }) => (
-            <a
-              key={key}
-              href={key === "cursos" ? "/cursos" : `/cursos?tab=${key}`}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === key
-                  ? "border-zinc-900 text-zinc-900"
-                  : "border-transparent text-zinc-400 hover:text-zinc-700 hover:border-zinc-300"
-              }`}
-            >
-              {label}
-            </a>
-          ))}
-        </div>
-      </div>
-
-      {/* ── CURSOS TAB ────────────────────────────────────────────────────────── */}
-      {activeTab === "cursos" && (
-        <div className="pt-3">
-          <CursosTable cursos={cursos} />
-        </div>
-      )}
-
-      {/* ── HORARIOS TAB ──────────────────────────────────────────────────────── */}
-      {activeTab === "horarios" && horariosResult && (
-        <div className="pt-3">
-          <HorariosTable horarios={horariosResult[0]} selectData={horariosResult[1]} />
-        </div>
-      )}
+      <CursosGruposView cursos={cursos} horarios={horarios} selectData={selectData} />
     </div>
   );
 }
