@@ -2,22 +2,94 @@
 
 import { useEffect, useActionState, useState } from "react";
 import { toast } from "sonner";
+import { Copy, Check, KeyRound } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  createDocente,
-  updateDocente,
-  type DocenteFormState,
-  type DocenteSerialized,
+  createDocente, updateDocente,
+  type DocenteFormState, type DocenteSerialized,
 } from "@/lib/actions/docentes";
+
+// ─── Copy button ──────────────────────────────────────────────────────────────
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title="Copiar"
+      className="ml-2 p-1 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
+// ─── Credentials panel (shown after create) ───────────────────────────────────
+
+function CredencialesPanel({
+  email,
+  password,
+  onClose,
+}: {
+  email: string;
+  password: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3">
+        <KeyRound className="h-5 w-5 text-emerald-600 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-emerald-800">Docente creado exitosamente</p>
+          <p className="text-xs text-emerald-600 mt-0.5">
+            Entrega estas credenciales al docente. La contraseña no se mostrará nuevamente.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-zinc-500 uppercase tracking-wide">Correo de acceso</Label>
+          <div className="flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <span className="font-mono text-sm text-zinc-800 flex-1 select-all">{email}</span>
+            <CopyButton value={email} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-zinc-500 uppercase tracking-wide">Contraseña</Label>
+          <div className="flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+            <span className="font-mono text-sm font-semibold text-zinc-800 flex-1 select-all tracking-widest">
+              {password}
+            </span>
+            <CopyButton value={password} />
+          </div>
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button onClick={onClose}>Entendido</Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+// ─── Main dialog ──────────────────────────────────────────────────────────────
 
 type Props = {
   open: boolean;
@@ -32,71 +104,176 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [handled, setHandled] = useState(false);
 
+  // DNI lookup state (only for new docente)
+  const [dniVal,     setDniVal]     = useState("");
+  const [nombreVal,  setNombreVal]  = useState(docente?.nombre  ?? "");
+  const [apellidoVal, setApellidoVal] = useState(docente?.apellido ?? "");
+  const [dniLoading, setDniLoading] = useState(false);
+  const [dniOk,      setDniOk]      = useState(false);
+  const [usaDni,     setUsaDni]     = useState(true);
+
+  // Reset on open
+  useEffect(() => {
+    if (!open) return;
+    if (!docente) {
+      setDniVal(""); setNombreVal(""); setApellidoVal("");
+      setDniOk(false); setUsaDni(true);
+    } else {
+      setNombreVal(docente.nombre);
+      setApellidoVal(docente.apellido);
+    }
+    setHandled(false);
+  }, [open, docente]);
+
+  // RENIEC lookup
+  useEffect(() => {
+    if (!usaDni || !/^\d{8}$/.test(dniVal)) { setDniOk(false); return; }
+    let cancelled = false;
+    setDniLoading(true);
+    fetch(`/api/dni/${dniVal}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.nombre) {
+          setNombreVal(data.nombre);
+          setApellidoVal(data.apellido);
+          setDniOk(true);
+        }
+      })
+      .finally(() => { if (!cancelled) setDniLoading(false); });
+    return () => { cancelled = true; };
+  }, [dniVal, usaDni]);
+
+  // Close on update success (state.message === "ok")
   useEffect(() => {
     if (state.message === "ok" && !handled) {
       setHandled(true);
-      toast.success(docente ? "Docente actualizado" : "Docente creado");
+      toast.success("Docente actualizado");
       onClose();
     }
-  }, [state.message, handled, docente, onClose]);
+  }, [state.message, handled, onClose]);
+
+  const e = state.errors ?? {};
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{docente ? "Editar docente" : "Nuevo docente"}</DialogTitle>
+          <DialogTitle>
+            {state.message === "credentials"
+              ? "Credenciales de acceso"
+              : docente ? "Editar docente" : "Nuevo docente"}
+          </DialogTitle>
         </DialogHeader>
 
-        <form action={formAction} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="nombre">Nombre *</Label>
-              <Input
-                id="nombre"
-                name="nombre"
-                defaultValue={docente?.nombre ?? ""}
-                placeholder="Carlos"
-              />
-              {state.errors?.nombre && (
-                <p className="text-xs text-destructive">{state.errors.nombre[0]}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="apellido">Apellido *</Label>
-              <Input
-                id="apellido"
-                name="apellido"
-                defaultValue={docente?.apellido ?? ""}
-                placeholder="García"
-              />
-              {state.errors?.apellido && (
-                <p className="text-xs text-destructive">{state.errors.apellido[0]}</p>
-              )}
-            </div>
-          </div>
+        {/* ── Credentials panel after creation ── */}
+        {state.message === "credentials" && state.credentials ? (
+          <CredencialesPanel
+            email={state.credentials.email}
+            password={state.credentials.password}
+            onClose={onClose}
+          />
+        ) : (
+          <form action={formAction} className="space-y-4">
 
-          <div className="space-y-1">
-            <Label htmlFor="celular">Celular</Label>
-            <Input
-              id="celular"
-              name="celular"
-              defaultValue={docente?.celular ?? ""}
-              placeholder="987654321"
-            />
-            {state.errors?.celular && (
-              <p className="text-xs text-destructive">{state.errors.celular[0]}</p>
+            {/* DNI — only for new docente */}
+            {!docente && (
+              <div className="space-y-1">
+                <Label htmlFor="dni">DNI</Label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="dni"
+                      name="dni"
+                      value={dniVal}
+                      onChange={(ev) => { setDniVal(ev.target.value); setDniOk(false); }}
+                      placeholder="12345678"
+                      maxLength={8}
+                      disabled={!usaDni}
+                      className={cn(!usaDni && "opacity-40")}
+                    />
+                    {dniLoading && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">
+                        buscando...
+                      </span>
+                    )}
+                    {dniOk && !dniLoading && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">
+                        ✓ RENIEC
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={usaDni}
+                    onChange={(ev) => {
+                      setUsaDni(ev.target.checked);
+                      if (!ev.target.checked) { setDniVal(""); setDniOk(false); }
+                    }}
+                    title="Buscar por DNI en RENIEC"
+                    className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                  />
+                </div>
+                {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
+              </div>
             )}
-          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Guardando..." : "Guardar"}
-            </Button>
-          </DialogFooter>
-        </form>
+            {/* DNI read-only badge when editing */}
+            {docente?.dni && (
+              <div className="flex items-center gap-2 rounded-md bg-zinc-50 border border-zinc-200 px-3 py-2">
+                <span className="text-xs text-zinc-400 uppercase tracking-wide font-semibold">DNI</span>
+                <span className="font-mono text-sm text-zinc-700">{docente.dni}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="nombre">Nombre *</Label>
+                <Input
+                  id="nombre"
+                  name="nombre"
+                  value={nombreVal}
+                  onChange={(ev) => setNombreVal(ev.target.value)}
+                  readOnly={dniOk && usaDni && !docente}
+                  className={cn(dniOk && usaDni && !docente && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  placeholder="Carlos"
+                />
+                {e.nombre && <p className="text-xs text-destructive">{e.nombre[0]}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="apellido">Apellido *</Label>
+                <Input
+                  id="apellido"
+                  name="apellido"
+                  value={apellidoVal}
+                  onChange={(ev) => setApellidoVal(ev.target.value)}
+                  readOnly={dniOk && usaDni && !docente}
+                  className={cn(dniOk && usaDni && !docente && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  placeholder="García"
+                />
+                {e.apellido && <p className="text-xs text-destructive">{e.apellido[0]}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="celular">Celular</Label>
+              <Input
+                id="celular"
+                name="celular"
+                defaultValue={docente?.celular ?? ""}
+                placeholder="987654321"
+              />
+              {e.celular && <p className="text-xs text-destructive">{e.celular[0]}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Guardando..." : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

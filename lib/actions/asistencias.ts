@@ -31,7 +31,7 @@ export type EstudianteAsistencia = {
 
 export type GuardarAsistenciaState = { error?: string; message?: string };
 
-// ─── Get active horarios ──────────────────────────────────────────────────────
+// ─── Get active horarios (all) ───────────────────────────────────────────────
 
 export async function getHorariosActivos(): Promise<HorarioAsistenciaOption[]> {
   const hoy = new Date();
@@ -39,6 +39,28 @@ export async function getHorariosActivos(): Promise<HorarioAsistenciaOption[]> {
 
   const horarios = await prisma.horario.findMany({
     where: { activo: true, curso: { activo: true } },
+    include: { curso: true, docente: true, aula: true, dias: true },
+    orderBy: { horaInicio: "asc" },
+  });
+
+  return horarios.map((h) => ({
+    id: h.id,
+    curso: { nombre: h.curso.nombre },
+    docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
+    aula: { nombre: h.aula.nombre },
+    dias: h.dias.map((d) => d.dia),
+    horaInicio: h.horaInicio.toISOString().slice(11, 16),
+    horaFin: h.horaFin.toISOString().slice(11, 16),
+  }));
+}
+
+// ─── Get active horarios filtered by docente ─────────────────────────────────
+
+export async function getHorariosByDocente(
+  docenteId: string
+): Promise<HorarioAsistenciaOption[]> {
+  const horarios = await prisma.horario.findMany({
+    where: { activo: true, curso: { activo: true }, idDocente: docenteId },
     include: { curso: true, docente: true, aula: true, dias: true },
     orderBy: { horaInicio: "asc" },
   });

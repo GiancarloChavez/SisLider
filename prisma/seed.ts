@@ -240,13 +240,28 @@ async function limpiarDB() {
 // ─── Usuarios ────────────────────────────────────────────────────────────────
 
 async function crearUsuarios() {
-  const hash1 = await bcrypt.hash("demo123", 10);
-  const hash2 = await bcrypt.hash("admin123", 10);
+  const hash1    = await bcrypt.hash("demo123",    10);
+  const hash2    = await bcrypt.hash("admin123",   10);
+  const hashDoc  = await bcrypt.hash("docente123", 10);
 
+  // Admin users
   await prisma.usuario.createMany({
     data: [
-      { id: IDS.u1, nombre: "María Flores", email: "secretaria@sislider.pe", passwordHash: hash1 },
-      { id: IDS.u2, nombre: "Carlos Ríos",  email: "admin@sislider.pe",      passwordHash: hash2 },
+      { id: IDS.u1, nombre: "María Flores", email: "secretaria@sislider.pe", passwordHash: hash1, rol: "admin" },
+      { id: IDS.u2, nombre: "Carlos Ríos",  email: "admin@sislider.pe",      passwordHash: hash2, rol: "admin" },
+    ],
+  });
+
+  // Docente user accounts (DNI-based emails, password = "docente123" for seed)
+  await prisma.usuario.createMany({
+    data: [
+      { id: "usr-doc-valentina", nombre: "Valentina Ríos Sandoval",     email: "71000001@sislider.pe", passwordHash: hashDoc, rol: "docente" },
+      { id: "usr-doc-diego",     nombre: "Diego Paredes Luna",           email: "71000002@sislider.pe", passwordHash: hashDoc, rol: "docente" },
+      { id: "usr-doc-roberto",   nombre: "Roberto Huanca Quispe",        email: "71000003@sislider.pe", passwordHash: hashDoc, rol: "docente" },
+      { id: "usr-doc-andrea",    nombre: "Andrea Lazo Mendoza",          email: "71000004@sislider.pe", passwordHash: hashDoc, rol: "docente" },
+      { id: "usr-doc-patricia",  nombre: "Patricia Torres Mamani",       email: "71000005@sislider.pe", passwordHash: hashDoc, rol: "docente" },
+      { id: "usr-doc-felipe",    nombre: "Felipe Mendoza Arce",          email: "71000006@sislider.pe", passwordHash: hashDoc, rol: "docente" },
+      { id: "usr-doc-sergio",    nombre: "Sergio Castro Villanueva",     email: "71000007@sislider.pe", passwordHash: hashDoc, rol: "docente" },
     ],
   });
 }
@@ -256,13 +271,13 @@ async function crearUsuarios() {
 async function crearInfraestructura() {
   await prisma.docente.createMany({
     data: [
-      { id: IDS.d1, nombre: "Valentina", apellido: "Ríos Sandoval",    celular: "987123001", activo: true },
-      { id: IDS.d2, nombre: "Diego",     apellido: "Paredes Luna",     celular: "987123002", activo: true },
-      { id: IDS.d3, nombre: "Roberto",   apellido: "Huanca Quispe",    celular: "987123003", activo: true },
-      { id: IDS.d4, nombre: "Andrea",    apellido: "Lazo Mendoza",     celular: "987123004", activo: true },
-      { id: IDS.d5, nombre: "Patricia",  apellido: "Torres Mamani",    celular: "987123005", activo: true },
-      { id: IDS.d6, nombre: "Felipe",    apellido: "Mendoza Arce",     celular: "987123006", activo: true },
-      { id: IDS.d7, nombre: "Sergio",    apellido: "Castro Villanueva",celular: "987123007", activo: true },
+      { id: IDS.d1, nombre: "Valentina", apellido: "Ríos Sandoval",     celular: "987123001", activo: true, dni: "71000001", idUsuario: "usr-doc-valentina" },
+      { id: IDS.d2, nombre: "Diego",     apellido: "Paredes Luna",      celular: "987123002", activo: true, dni: "71000002", idUsuario: "usr-doc-diego"     },
+      { id: IDS.d3, nombre: "Roberto",   apellido: "Huanca Quispe",     celular: "987123003", activo: true, dni: "71000003", idUsuario: "usr-doc-roberto"   },
+      { id: IDS.d4, nombre: "Andrea",    apellido: "Lazo Mendoza",      celular: "987123004", activo: true, dni: "71000004", idUsuario: "usr-doc-andrea"    },
+      { id: IDS.d5, nombre: "Patricia",  apellido: "Torres Mamani",     celular: "987123005", activo: true, dni: "71000005", idUsuario: "usr-doc-patricia"  },
+      { id: IDS.d6, nombre: "Felipe",    apellido: "Mendoza Arce",      celular: "987123006", activo: true, dni: "71000006", idUsuario: "usr-doc-felipe"    },
+      { id: IDS.d7, nombre: "Sergio",    apellido: "Castro Villanueva", celular: "987123007", activo: true, dni: "71000007", idUsuario: "usr-doc-sergio"    },
     ],
   });
 

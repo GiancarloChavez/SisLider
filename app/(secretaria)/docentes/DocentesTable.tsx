@@ -7,10 +7,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Pencil, PowerOff, Power, Plus, Search, UserCheck } from "lucide-react";
+import { Pencil, PowerOff, Power, Plus, Search, UserCheck, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toggleDocenteActivo, type DocenteSerialized } from "@/lib/actions/docentes";
 import { DocenteDialog } from "./DocenteDialog";
+import { CredencialesDialog } from "./CredencialesDialog";
 
 type Props = { docentes: DocenteSerialized[] };
 
@@ -32,6 +33,10 @@ export function DocentesTable({ docentes }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<DocenteSerialized | null>(null);
   const [dialogKey, setDialogKey] = useState(0);
+
+  const [credDialogOpen, setCredDialogOpen] = useState(false);
+  const [credDocente, setCredDocente] = useState<DocenteSerialized | null>(null);
+
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -40,7 +45,8 @@ export function DocentesTable({ docentes }: Props) {
     return docentes.filter(
       (d) =>
         d.nombre.toLowerCase().includes(q) ||
-        d.apellido.toLowerCase().includes(q)
+        d.apellido.toLowerCase().includes(q) ||
+        (d.dni ?? "").includes(q)
     );
   }, [docentes, search]);
 
@@ -54,6 +60,11 @@ export function DocentesTable({ docentes }: Props) {
     setSelected(docente);
     setDialogKey((k) => k + 1);
     setDialogOpen(true);
+  }
+
+  function openCredenciales(docente: DocenteSerialized) {
+    setCredDocente(docente);
+    setCredDialogOpen(true);
   }
 
   async function handleToggle(docente: DocenteSerialized) {
@@ -83,7 +94,7 @@ export function DocentesTable({ docentes }: Props) {
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
             <Input
-              placeholder="Buscar por nombre..."
+              placeholder="Buscar por nombre o DNI..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 text-sm bg-zinc-50 border-zinc-200"
@@ -100,6 +111,7 @@ export function DocentesTable({ docentes }: Props) {
           <TableHeader>
             <TableRow className="bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="font-semibold text-zinc-600">Apellidos y nombre</TableHead>
+              <TableHead className="font-semibold text-zinc-600">DNI</TableHead>
               <TableHead className="font-semibold text-zinc-600">Celular</TableHead>
               <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
               <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
@@ -108,7 +120,7 @@ export function DocentesTable({ docentes }: Props) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <UserCheck className="h-7 w-7 text-zinc-300" />
@@ -118,7 +130,7 @@ export function DocentesTable({ docentes }: Props) {
                         {search ? "Sin resultados" : "No hay docentes registrados"}
                       </p>
                       <p className="text-xs text-zinc-400 mt-1">
-                        {search ? "Prueba con otro término de búsqueda" : "Crea el primero usando el botón de arriba"}
+                        {search ? "Prueba con otro término" : "Crea el primero usando el botón de arriba"}
                       </p>
                     </div>
                   </div>
@@ -129,6 +141,12 @@ export function DocentesTable({ docentes }: Props) {
                 <TableRow key={d.id} className="transition-colors duration-100 hover:bg-zinc-50/70">
                   <TableCell>
                     <p className="font-medium text-zinc-900">{d.apellido}, {d.nombre}</p>
+                    {d.email && (
+                      <p className="text-xs text-zinc-400 font-mono mt-0.5">{d.email}</p>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-zinc-500">
+                    {d.dni ?? <span className="text-zinc-300 font-sans">—</span>}
                   </TableCell>
                   <TableCell className="font-mono text-sm text-zinc-500">
                     {d.celular ?? <span className="text-zinc-300 font-sans">—</span>}
@@ -139,6 +157,16 @@ export function DocentesTable({ docentes }: Props) {
                       <Button size="icon-sm" variant="ghost" onClick={() => openEdit(d)} title="Editar">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
+                      {d.email && (
+                        <Button
+                          size="icon-sm" variant="ghost"
+                          onClick={() => openCredenciales(d)}
+                          title="Ver / regenerar credenciales"
+                          className="text-zinc-400 hover:text-zinc-700"
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button
                         size="icon-sm" variant="ghost"
                         onClick={() => handleToggle(d)}
@@ -156,7 +184,19 @@ export function DocentesTable({ docentes }: Props) {
         </Table>
       </div>
 
-      <DocenteDialog key={dialogKey} open={dialogOpen} onClose={() => setDialogOpen(false)} docente={selected} />
+      <DocenteDialog
+        key={dialogKey}
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        docente={selected}
+      />
+      {credDocente && (
+        <CredencialesDialog
+          open={credDialogOpen}
+          onClose={() => { setCredDialogOpen(false); setCredDocente(null); }}
+          docente={credDocente}
+        />
+      )}
     </>
   );
 }

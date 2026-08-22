@@ -18,6 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const usuario = await prisma.usuario.findUnique({
           where: { email: credentials.email as string },
+          include: { docente: { select: { id: true } } },
         });
 
         if (!usuario || !usuario.activo) return null;
@@ -29,19 +30,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!valido) return null;
 
-        return { id: usuario.id, name: usuario.nombre, email: usuario.email };
+        return {
+          id: usuario.id,
+          name: usuario.nombre,
+          email: usuario.email,
+          rol: usuario.rol,
+          docenteId: usuario.docente?.id ?? null,
+        };
       },
     }),
   ],
   callbacks: {
     jwt({ token, user }) {
       if (user?.id) token.id = user.id;
+      if ((user as any)?.rol)       token.rol       = (user as any).rol;
+      if ((user as any)?.docenteId !== undefined) token.docenteId = (user as any).docenteId;
       return token;
     },
     session({ session, token }) {
       return {
         ...session,
-        user: { ...session.user, id: (token.id ?? token.sub ?? "") as string },
+        user: {
+          ...session.user,
+          id:        (token.id       ?? token.sub ?? "") as string,
+          rol:       (token.rol       ?? "admin")        as string,
+          docenteId: (token.docenteId ?? null)           as string | null,
+        },
       };
     },
   },
