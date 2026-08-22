@@ -157,16 +157,14 @@ export function DocentesTable({ docentes }: Props) {
                       <Button size="icon-sm" variant="ghost" onClick={() => openEdit(d)} title="Editar">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      {d.email && (
-                        <Button
-                          size="icon-sm" variant="ghost"
-                          onClick={() => openCredenciales(d)}
-                          title="Ver / regenerar credenciales"
-                          className="text-zinc-400 hover:text-zinc-700"
-                        >
-                          <KeyRound className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <Button
+                        size="icon-sm" variant="ghost"
+                        onClick={() => openCredenciales(d)}
+                        title={d.email ? "Ver / regenerar credenciales" : "Crear cuenta de acceso"}
+                        className={d.email ? "text-zinc-400 hover:text-zinc-700" : "text-amber-500 hover:text-amber-700 hover:bg-amber-50"}
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                      </Button>
                       <Button
                         size="icon-sm" variant="ghost"
                         onClick={() => handleToggle(d)}

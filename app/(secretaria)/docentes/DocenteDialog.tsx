@@ -105,19 +105,18 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
   const [handled, setHandled] = useState(false);
 
   // DNI lookup state (only for new docente)
-  const [dniVal,     setDniVal]     = useState("");
-  const [nombreVal,  setNombreVal]  = useState(docente?.nombre  ?? "");
+  const [dniVal,      setDniVal]      = useState("");
+  const [nombreVal,   setNombreVal]   = useState(docente?.nombre  ?? "");
   const [apellidoVal, setApellidoVal] = useState(docente?.apellido ?? "");
-  const [dniLoading, setDniLoading] = useState(false);
-  const [dniOk,      setDniOk]      = useState(false);
-  const [usaDni,     setUsaDni]     = useState(true);
+  const [dniLoading,  setDniLoading]  = useState(false);
+  const [dniOk,       setDniOk]       = useState(false);
 
   // Reset on open
   useEffect(() => {
     if (!open) return;
     if (!docente) {
       setDniVal(""); setNombreVal(""); setApellidoVal("");
-      setDniOk(false); setUsaDni(true);
+      setDniOk(false);
     } else {
       setNombreVal(docente.nombre);
       setApellidoVal(docente.apellido);
@@ -127,7 +126,7 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
 
   // RENIEC lookup
   useEffect(() => {
-    if (!usaDni || !/^\d{8}$/.test(dniVal)) { setDniOk(false); return; }
+    if (!/^\d{8}$/.test(dniVal)) { setDniOk(false); return; }
     let cancelled = false;
     setDniLoading(true);
     fetch(`/api/dni/${dniVal}`)
@@ -142,7 +141,7 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
       })
       .finally(() => { if (!cancelled) setDniLoading(false); });
     return () => { cancelled = true; };
-  }, [dniVal, usaDni]);
+  }, [dniVal]);
 
   // Close on update success (state.message === "ok")
   useEffect(() => {
@@ -179,40 +178,27 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
             {/* DNI — only for new docente */}
             {!docente && (
               <div className="space-y-1">
-                <Label htmlFor="dni">DNI</Label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id="dni"
-                      name="dni"
-                      value={dniVal}
-                      onChange={(ev) => { setDniVal(ev.target.value); setDniOk(false); }}
-                      placeholder="12345678"
-                      maxLength={8}
-                      disabled={!usaDni}
-                      className={cn(!usaDni && "opacity-40")}
-                    />
-                    {dniLoading && (
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">
-                        buscando...
-                      </span>
-                    )}
-                    {dniOk && !dniLoading && (
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">
-                        ✓ RENIEC
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={usaDni}
-                    onChange={(ev) => {
-                      setUsaDni(ev.target.checked);
-                      if (!ev.target.checked) { setDniVal(""); setDniOk(false); }
-                    }}
-                    title="Buscar por DNI en RENIEC"
-                    className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
+                <Label htmlFor="dni">DNI *</Label>
+                <div className="relative">
+                  <Input
+                    id="dni"
+                    name="dni"
+                    value={dniVal}
+                    onChange={(ev) => { setDniVal(ev.target.value); setDniOk(false); }}
+                    placeholder="12345678"
+                    maxLength={8}
+                    inputMode="numeric"
                   />
+                  {dniLoading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">
+                      buscando...
+                    </span>
+                  )}
+                  {dniOk && !dniLoading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">
+                      ✓ RENIEC
+                    </span>
+                  )}
                 </div>
                 {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
               </div>

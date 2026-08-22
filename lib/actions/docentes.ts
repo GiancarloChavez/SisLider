@@ -63,7 +63,7 @@ const createSchema = z.object({
   nombre:   z.string().min(1, "El nombre es requerido").max(100),
   apellido: z.string().min(1, "El apellido es requerido").max(100),
   celular:  z.string().max(20).optional(),
-  dni:      z.string().regex(/^\d{8}$/, "El DNI debe tener exactamente 8 dígitos").optional(),
+  dni:      z.string().regex(/^\d{8}$/, "El DNI debe tener exactamente 8 dígitos"),
 });
 
 const updateSchema = z.object({
@@ -78,7 +78,7 @@ export async function createDocente(
   _prev: DocenteFormState,
   formData: FormData
 ): Promise<DocenteFormState> {
-  const rawDni = (formData.get("dni") as string | null)?.trim() || undefined;
+  const rawDni = (formData.get("dni") as string | null)?.trim();
 
   const parsed = createSchema.safeParse({
     nombre:   formData.get("nombre"),
@@ -93,21 +93,18 @@ export async function createDocente(
 
   const { nombre, apellido, celular, dni } = parsed.data;
 
-  // Check DNI uniqueness
-  if (dni) {
-    const existing = await prisma.docente.findUnique({ where: { dni } });
-    if (existing) {
-      return { errors: { dni: ["Este DNI ya está registrado en el sistema."] } };
-    }
-    const emailExisting = await prisma.usuario.findUnique({ where: { email: `${dni}@sislider.pe` } });
-    if (emailExisting) {
-      return { errors: { dni: ["Ya existe una cuenta con este DNI."] } };
-    }
+  const existing = await prisma.docente.findUnique({ where: { dni } });
+  if (existing) {
+    return { errors: { dni: ["Este DNI ya está registrado en el sistema."] } };
+  }
+  const emailExisting = await prisma.usuario.findUnique({ where: { email: `${dni}@sislider.pe` } });
+  if (emailExisting) {
+    return { errors: { dni: ["Ya existe una cuenta con este DNI."] } };
   }
 
   const password = generatePassword();
   const passwordHash = await bcrypt.hash(password, 10);
-  const email = `${dni ?? Date.now()}@sislider.pe`;
+  const email = `${dni}@sislider.pe`;
 
   const usuario = await prisma.usuario.create({
     data: {
@@ -119,7 +116,7 @@ export async function createDocente(
   });
 
   await prisma.docente.create({
-    data: { nombre, apellido, celular, dni: dni ?? null, idUsuario: usuario.id },
+    data: { nombre, apellido, celular, dni, idUsuario: usuario.id },
   });
 
   revalidateTag("docentes");
@@ -171,25 +168,44 @@ export async function toggleDocenteActivo(id: string, activo: boolean) {
 
 export async function regenerarPasswordDocente(
   docenteId: string
-): Promise<{ password: string } | { error: string }> {
+): Promise<{ email: string; password: string } | { error: string }> {
   const docente = await prisma.docente.findUnique({
     where: { id: docenteId },
-    select: { idUsuario: true },
+    select: { idUsuario: true, nombre: true, apellido: true, dni: true },
   });
 
-  if (!docente?.idUsuario) {
-    return { error: "Este docente no tiene cuenta de acceso." };
+  if (!docente) return { error: "Docente no encontrado." };
+
+  // No tiene cuenta → crear una
+  if (!docente.idUsuario) {
+    if (!docente.dni) {
+      return { error: "El docente no tiene DNI registrado. Edítalo primero para asignarle uno." };
+    }
+    const email = `${docente.dni}@sislider.pe`;
+    const existingEmail = await prisma.usuario.findUnique({ where: { email } });
+    if (existingEmail) {
+      return { error: "Ya existe una cuenta con ese DNI. Contacta al administrador." };
+    }
+    const password = generatePassword();
+    const passwordHash = await bcrypt.hash(password, 10);
+    const usuario = await prisma.usuario.create({
+      data: { nombre: `${docente.nombre} ${docente.apellido}`, email, passwordHash, rol: "docente" },
+    });
+    await prisma.docente.update({ where: { id: docenteId }, data: { idUsuario: usuario.id } });
+    revalidateTag("docentes");
+    return { email, password };
   }
 
+  // Tiene cuenta → regenerar contraseña
   const password = generatePassword();
   const passwordHash = await bcrypt.hash(password, 10);
-
-  await prisma.usuario.update({
+  const usuario = await prisma.usuario.update({
     where: { id: docente.idUsuario },
     data: { passwordHash },
+    select: { email: true },
   });
 
-  return { password };
+  return { email: usuario.email, password };
 }
 
 // ─── Perfil portal ────────────────────────────────────────────────────────────
