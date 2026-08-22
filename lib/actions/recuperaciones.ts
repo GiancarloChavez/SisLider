@@ -60,7 +60,7 @@ export async function getAusenciasSinRecuperacion(): Promise<AusenciaSinRecupera
         include: {
           alumno: { select: { id: true, nombre: true, apellido: true, dni: true } },
           horario: {
-            include: { curso: { select: { nombre: true, nivel: true } } },
+            include: { curso: { select: { nombre: true } } },
           },
         },
       },
