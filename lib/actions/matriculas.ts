@@ -234,8 +234,8 @@ export async function createMatricula(
   }
 
   const now = new Date();
-  // Si el curso aún no inicia, el primer pago corresponde al mes de apertura
-  const pagoRef = horario.curso.fechaInicio > now ? horario.curso.fechaInicio : now;
+  // Si el grupo aún no inicia, el primer pago corresponde al mes de apertura
+  const pagoRef = (horario.fechaInicio && horario.fechaInicio > now) ? horario.fechaInicio : now;
   const ultimoDiaMes = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + 1, 0);
 
   const cupoOcupado = await prisma.matricula.count({
@@ -448,7 +448,7 @@ export async function createMatriculaConPago(
   }
 
   const now = new Date();
-  const pagoRef = horario.curso.fechaInicio > now ? horario.curso.fechaInicio : now;
+  const pagoRef = (horario.fechaInicio && horario.fechaInicio > now) ? horario.fechaInicio : now;
   const ultimoDiaMes = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + 1, 0);
 
   const matriculaId = randomUUID();
