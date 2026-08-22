@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HorarioCalendario } from "@/lib/actions/clases";
@@ -17,11 +17,12 @@ const DIA_TO_DOW: Record<string, number> = {
   Domingo: 0, Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6,
 };
 
-const HOUR_START = 6;
-const HOUR_END = 22;
-const PX_PER_HOUR = 60;
+const HOUR_START = 0;
+const HOUR_END = 24;
+const PX_PER_HOUR = 52;
 const TOTAL_HEIGHT = (HOUR_END - HOUR_START) * PX_PER_HOUR;
 const TIME_COL_W = 60;
+const COLOR_STORAGE_KEY = "sislider-calendar-colors";
 
 const PALETTE = [
   { bg: "bg-blue-100/70",    border: "border-blue-200",    bar: "bg-blue-400",    text: "text-blue-900",    sub: "text-blue-700/70",    dot: "bg-blue-400"    },
@@ -32,6 +33,8 @@ const PALETTE = [
   { bg: "bg-teal-100/70",    border: "border-teal-200",    bar: "bg-teal-400",    text: "text-teal-900",    sub: "text-teal-700/70",    dot: "bg-teal-400"    },
   { bg: "bg-indigo-100/70",  border: "border-indigo-200",  bar: "bg-indigo-400",  text: "text-indigo-900",  sub: "text-indigo-700/70",  dot: "bg-indigo-400"  },
   { bg: "bg-rose-100/70",    border: "border-rose-200",    bar: "bg-rose-400",    text: "text-rose-900",    sub: "text-rose-700/70",    dot: "bg-rose-400"    },
+  { bg: "bg-amber-100/70",   border: "border-amber-200",   bar: "bg-amber-400",   text: "text-amber-900",   sub: "text-amber-700/70",   dot: "bg-amber-400"   },
+  { bg: "bg-cyan-100/70",    border: "border-cyan-200",    bar: "bg-cyan-400",    text: "text-cyan-900",    sub: "text-cyan-700/70",    dot: "bg-cyan-400"    },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,10 +49,10 @@ function topPx(t: string): number {
 function heightPx(a: string, b: string): number {
   return ((timeToMinutes(b) - timeToMinutes(a)) / 60) * PX_PER_HOUR;
 }
-function colorForCourse(id: string) {
+function hashColor(id: string): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffff;
-  return PALETTE[hash % PALETTE.length];
+  return hash % PALETTE.length;
 }
 function fmt12(t: string): string {
   const [h, m] = t.split(":").map(Number);
@@ -103,8 +106,52 @@ export function CalendarView({ horarios }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [miniRef, setMiniRef] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [colorOverrides, setColorOverrides] = useState<Record<string, number>>({});
+  const [pickerOpen, setPickerOpen] = useState<string | null>(null);
+  const [nowMin, setNowMin] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Cursos únicos (los "calendarios")
+  // Cargar colores guardados
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COLOR_STORAGE_KEY);
+      if (stored) setColorOverrides(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Reloj para el indicador de hora actual
+  useEffect(() => {
+    const tick = () => {
+      const n = new Date();
+      setNowMin(n.getHours() * 60 + n.getMinutes());
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Scroll inicial cerca de la hora actual
+  useEffect(() => {
+    if (scrollRef.current && nowMin !== null) {
+      scrollRef.current.scrollTop = Math.max(0, (nowMin / 60) * PX_PER_HOUR - 200);
+    }
+    // solo al montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function colorFor(courseId: string) {
+    const idx = colorOverrides[courseId];
+    return PALETTE[idx !== undefined ? idx : hashColor(courseId)];
+  }
+  function setCourseColor(courseId: string, idx: number) {
+    setColorOverrides((prev) => {
+      const next = { ...prev, [courseId]: idx };
+      try { localStorage.setItem(COLOR_STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setPickerOpen(null);
+  }
+
   const cursos = useMemo(
     () => Array.from(new Map(horarios.map((h) => [h.curso.id, h.curso])).values()),
     [horarios]
@@ -112,7 +159,6 @@ export function CalendarView({ horarios }: Props) {
 
   const visibles = horarios.filter((h) => !hidden.has(h.curso.id));
 
-  // Semana visible (Dom → Sáb)
   const baseWeek = startOfWeekSun(today);
   const weekStart = new Date(baseWeek);
   weekStart.setDate(baseWeek.getDate() + weekOffset * 7);
@@ -124,7 +170,6 @@ export function CalendarView({ horarios }: Props) {
 
   const monthTitle = `${MESES[weekDates[0].getMonth()]} ${weekDates[0].getFullYear()}`;
 
-  // Mini-month grid
   const miniFirst = new Date(miniRef.getFullYear(), miniRef.getMonth(), 1);
   const miniStart = new Date(miniFirst);
   miniStart.setDate(miniFirst.getDate() - miniFirst.getDay());
@@ -141,7 +186,6 @@ export function CalendarView({ horarios }: Props) {
       return n;
     });
   }
-
   function jumpToDate(d: Date) {
     const target = startOfWeekSun(d);
     const diffDays = Math.round((target.getTime() - baseWeek.getTime()) / 86400000);
@@ -149,12 +193,157 @@ export function CalendarView({ horarios }: Props) {
   }
 
   const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i);
+  const nowTopPx = nowMin !== null ? ((nowMin - HOUR_START * 60) / 60) * PX_PER_HOUR : 0;
 
   return (
-    <div className="flex rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm" style={{ height: "calc(100vh - 190px)" }}>
+    <div className="flex rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm" style={{ height: "calc(100vh - 150px)" }}>
 
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside className="w-60 shrink-0 border-r border-zinc-200 flex flex-col bg-zinc-50/40">
+      {/* ── Main ────────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-200 shrink-0">
+          <h2 className="text-lg font-bold text-zinc-900">{monthTitle}</h2>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border border-zinc-200 overflow-hidden">
+              <button
+                onClick={() => setWeekOffset((w) => w - 1)}
+                className="p-2 hover:bg-zinc-50 text-zinc-500 border-r border-zinc-200"
+                aria-label="Semana anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setWeekOffset((w) => w + 1)}
+                className="p-2 hover:bg-zinc-50 text-zinc-500"
+                aria-label="Semana siguiente"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
+              Hoy
+            </button>
+            <span className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600">
+              Semana
+            </span>
+          </div>
+        </div>
+
+        {/* Day headers */}
+        <div
+          className="grid border-b border-zinc-200 shrink-0"
+          style={{ gridTemplateColumns: `${TIME_COL_W}px repeat(7, 1fr)` }}
+        >
+          <div className="py-2 text-center text-[10px] text-zinc-400 font-medium flex items-end justify-center pb-2">
+            GMT-5
+          </div>
+          {weekDates.map((d, i) => {
+            const isToday = isSameDay(d, today);
+            return (
+              <div key={i} className="border-l border-zinc-100 py-2 text-center select-none">
+                <p className={cn("text-[11px] font-medium uppercase tracking-wide", isToday ? "text-zinc-900" : "text-zinc-400")}>
+                  {COL_WEEKDAYS[d.getDay()]} {d.getDate()}
+                </p>
+                {isToday && <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Scrollable grid */}
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+          <div
+            className="relative grid"
+            style={{
+              gridTemplateColumns: `${TIME_COL_W}px repeat(7, 1fr)`,
+              height: TOTAL_HEIGHT,
+            }}
+          >
+            {/* Time labels */}
+            <div className="relative border-r border-zinc-100">
+              {hours.map((h) => (
+                <div
+                  key={h}
+                  className="absolute right-2 text-[11px] text-zinc-400 tabular-nums select-none"
+                  style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}
+                >
+                  {fmt12(`${String(h).padStart(2, "0")}:00`)}
+                </div>
+              ))}
+            </div>
+
+            {/* Day columns */}
+            {weekDates.map((date, colIdx) => {
+              const isToday = isSameDay(date, today);
+              const dow = date.getDay();
+              const diaEsp = Object.keys(DIA_TO_DOW).find((k) => DIA_TO_DOW[k] === dow);
+              const dayItems = diaEsp ? visibles.filter((h) => h.dias.includes(diaEsp)) : [];
+              const layouts = computeLayout(dayItems);
+              return (
+                <div key={colIdx} className={cn("relative border-l border-zinc-100", isToday && "bg-blue-50/20")}>
+                  {hours.map((h) => (
+                    <div
+                      key={h}
+                      className="absolute inset-x-0 border-t border-zinc-100"
+                      style={{ top: (h - HOUR_START) * PX_PER_HOUR }}
+                    />
+                  ))}
+
+                  {/* Indicador de hora actual */}
+                  {isToday && nowMin !== null && (
+                    <div className="absolute inset-x-0 z-20 pointer-events-none" style={{ top: nowTopPx }}>
+                      <div className="relative flex items-center">
+                        <span className="absolute -left-1 h-2.5 w-2.5 rounded-full bg-red-500 shadow-sm" />
+                        <span className="w-full border-t-2 border-red-500" />
+                      </div>
+                    </div>
+                  )}
+
+                  {layouts.map(({ horario: h, lane, numLanes }) => {
+                    const color = colorFor(h.curso.id);
+                    const top = topPx(h.horaInicio);
+                    const height = heightPx(h.horaInicio, h.horaFin);
+                    const leftPct = (lane / numLanes) * 100;
+                    const widthPct = (1 / numLanes) * 100;
+                    const compact = height < 40;
+                    return (
+                      <div
+                        key={h.id}
+                        className={cn("absolute rounded-lg border overflow-hidden", color.bg, color.border)}
+                        style={{
+                          top: top + 1,
+                          height: height - 2,
+                          left: `calc(${leftPct}% + 2px)`,
+                          width: `calc(${widthPct}% - 4px)`,
+                        }}
+                      >
+                        <div className={cn("absolute left-0 top-0 bottom-0 w-1", color.bar)} />
+                        <div className="pl-2.5 pr-1.5 py-1 h-full overflow-hidden">
+                          <p className={cn("font-semibold leading-tight truncate", compact ? "text-[10px]" : "text-xs", color.text)}>
+                            {h.curso.nombre}
+                          </p>
+                          {!compact && (
+                            <p className={cn("text-[10px] mt-0.5 tabular-nums", color.sub)}>
+                              {fmt12(h.horaInicio)} - {fmt12(h.horaFin)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sidebar (derecha) ───────────────────────────────────── */}
+      <aside className="w-60 shrink-0 border-l border-zinc-200 flex flex-col bg-zinc-50/40">
 
         {/* Mini month */}
         <div className="p-4 border-b border-zinc-100">
@@ -210,7 +399,7 @@ export function CalendarView({ horarios }: Props) {
           </div>
         </div>
 
-        {/* Calendars (cursos) */}
+        {/* Cursos + color picker */}
         <div className="p-4 overflow-y-auto flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">
             Cursos
@@ -220,166 +409,54 @@ export function CalendarView({ horarios }: Props) {
               <li className="text-xs text-zinc-400 py-2">No hay cursos con horarios.</li>
             )}
             {cursos.map((c) => {
-              const color = colorForCourse(c.id);
+              const color = colorFor(c.id);
               const active = !hidden.has(c.id);
               return (
-                <li key={c.id}>
-                  <button
-                    onClick={() => toggleCurso(c.id)}
-                    className="w-full flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-zinc-100 transition-colors"
-                  >
-                    <span className={cn(
-                      "flex h-4 w-4 items-center justify-center rounded border shrink-0 transition-colors",
-                      active ? cn(color.bar, "border-transparent") : "border-zinc-300 bg-white"
-                    )}>
-                      {active && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-                    </span>
-                    <span className={cn("text-sm truncate flex-1", active ? "text-zinc-700" : "text-zinc-400")}>
-                      {c.nombre}
-                    </span>
-                    <span className={cn("h-2 w-2 rounded-full shrink-0", color.dot)} />
-                  </button>
+                <li key={c.id} className="relative">
+                  <div className="w-full flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-zinc-100 transition-colors">
+                    <button
+                      onClick={() => toggleCurso(c.id)}
+                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                    >
+                      <span className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded border shrink-0 transition-colors",
+                        active ? cn(color.bar, "border-transparent") : "border-zinc-300 bg-white"
+                      )}>
+                        {active && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                      </span>
+                      <span className={cn("text-sm truncate", active ? "text-zinc-700" : "text-zinc-400")}>
+                        {c.nombre}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setPickerOpen(pickerOpen === c.id ? null : c.id)}
+                      className={cn("h-3.5 w-3.5 rounded-full shrink-0 ring-offset-1 hover:ring-2 hover:ring-zinc-300 transition-all", color.dot)}
+                      title="Cambiar color"
+                      aria-label="Cambiar color"
+                    />
+                  </div>
+
+                  {/* Popover de colores */}
+                  {pickerOpen === c.id && (
+                    <div className="absolute right-2 top-full z-30 mt-1 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg">
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {PALETTE.map((p, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setCourseColor(c.id, idx)}
+                            className={cn("h-5 w-5 rounded-full transition-transform hover:scale-110", p.dot)}
+                            aria-label={`Color ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
         </div>
       </aside>
-
-      {/* ── Main ────────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col">
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-200 shrink-0">
-          <h2 className="text-lg font-bold text-zinc-900">{monthTitle}</h2>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-lg border border-zinc-200 overflow-hidden">
-              <button
-                onClick={() => setWeekOffset((w) => w - 1)}
-                className="p-2 hover:bg-zinc-50 text-zinc-500 border-r border-zinc-200"
-                aria-label="Semana anterior"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setWeekOffset((w) => w + 1)}
-                className="p-2 hover:bg-zinc-50 text-zinc-500"
-                aria-label="Semana siguiente"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-            >
-              Hoy
-            </button>
-            <span className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600">
-              Semana
-            </span>
-          </div>
-        </div>
-
-        {/* Day headers */}
-        <div
-          className="grid border-b border-zinc-200 shrink-0"
-          style={{ gridTemplateColumns: `${TIME_COL_W}px repeat(7, 1fr)` }}
-        >
-          <div className="py-2 text-center text-[10px] text-zinc-400 font-medium flex items-end justify-center pb-2">
-            GMT-5
-          </div>
-          {weekDates.map((d, i) => {
-            const isToday = isSameDay(d, today);
-            return (
-              <div key={i} className="border-l border-zinc-100 py-2 text-center select-none">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-                  {COL_WEEKDAYS[d.getDay()]} {d.getDate()}
-                </p>
-                {isToday && (
-                  <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-zinc-900" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Scrollable grid */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div
-            className="relative grid"
-            style={{
-              gridTemplateColumns: `${TIME_COL_W}px repeat(7, 1fr)`,
-              height: TOTAL_HEIGHT,
-            }}
-          >
-            {/* Time labels */}
-            <div className="relative border-r border-zinc-100">
-              {hours.map((h) => (
-                <div
-                  key={h}
-                  className="absolute right-2 text-[11px] text-zinc-400 tabular-nums select-none"
-                  style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}
-                >
-                  {fmt12(`${String(h).padStart(2, "0")}:00`)}
-                </div>
-              ))}
-            </div>
-
-            {/* Day columns */}
-            {weekDates.map((date, colIdx) => {
-              const isToday = isSameDay(date, today);
-              const dow = date.getDay();
-              const diaEsp = Object.keys(DIA_TO_DOW).find((k) => DIA_TO_DOW[k] === dow);
-              const dayItems = diaEsp ? visibles.filter((h) => h.dias.includes(diaEsp)) : [];
-              const layouts = computeLayout(dayItems);
-              return (
-                <div key={colIdx} className={cn("relative border-l border-zinc-100", isToday && "bg-blue-50/30")}>
-                  {hours.map((h) => (
-                    <div
-                      key={h}
-                      className="absolute inset-x-0 border-t border-zinc-100"
-                      style={{ top: (h - HOUR_START) * PX_PER_HOUR }}
-                    />
-                  ))}
-                  {layouts.map(({ horario: h, lane, numLanes }) => {
-                    const color = colorForCourse(h.curso.id);
-                    const top = topPx(h.horaInicio);
-                    const height = heightPx(h.horaInicio, h.horaFin);
-                    const leftPct = (lane / numLanes) * 100;
-                    const widthPct = (1 / numLanes) * 100;
-                    const compact = height < 44;
-                    return (
-                      <div
-                        key={h.id}
-                        className={cn("absolute rounded-lg border overflow-hidden", color.bg, color.border)}
-                        style={{
-                          top: top + 1,
-                          height: height - 2,
-                          left: `calc(${leftPct}% + 2px)`,
-                          width: `calc(${widthPct}% - 4px)`,
-                        }}
-                      >
-                        <div className={cn("absolute left-0 top-0 bottom-0 w-1", color.bar)} />
-                        <div className="pl-2.5 pr-1.5 py-1 h-full overflow-hidden">
-                          <p className={cn("font-semibold leading-tight truncate", compact ? "text-[10px]" : "text-xs", color.text)}>
-                            {h.curso.nombre}
-                          </p>
-                          {!compact && (
-                            <p className={cn("text-[10px] mt-0.5 tabular-nums", color.sub)}>
-                              {fmt12(h.horaInicio)} - {fmt12(h.horaFin)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
