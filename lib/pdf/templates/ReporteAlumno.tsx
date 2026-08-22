@@ -107,7 +107,7 @@ export function ReporteAlumno({ data }: { data: ReporteAlumnoData }) {
                 <View style={S.courseCardHeader}>
                   <View>
                     <Text style={S.courseCardHeaderText}>
-                      {m.curso}{m.nivel ? ` — ${m.nivel}` : ""}
+                      {m.curso}
                     </Text>
                     <Text style={S.courseCardHeaderSub}>
                       {diasStr}  {m.horaInicio}–{m.horaFin}  ·  {m.aula}
