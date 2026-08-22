@@ -33,7 +33,6 @@ export type ReporteAlumnoData = {
   matriculas: {
     id: string;
     curso: string;
-    nivel: string | null;
     dias: string[];
     horaInicio: string;
     horaFin: string;
@@ -102,10 +101,7 @@ export type ReporteCursosData = {
   totalAlumnosActivos: number;
   cursos: {
     nombre: string;
-    nivel: string | null;
     precioMensual: number;
-    fechaInicio: string;
-    fechaFin: string;
     activo: boolean;
     horarios: {
       id: string;
@@ -202,7 +198,6 @@ export async function getReporteAlumnoData(
       return {
         id: m.id,
         curso: m.horario.curso.nombre,
-        nivel: m.horario.curso.nivel,
         dias: m.dias.map((d) => d.dia),
         horaInicio: m.horario.horaInicio.toISOString().slice(11, 16),
         horaFin: m.horario.horaFin.toISOString().slice(11, 16),
@@ -378,10 +373,7 @@ export async function getReporteCursosData(): Promise<ReporteCursosData> {
     totalAlumnosActivos: totalAlumnos,
     cursos: cursos.map((c) => ({
       nombre: c.nombre,
-      nivel: c.nivel,
       precioMensual: Number(c.precioMensual),
-      fechaInicio: fmtDateShort(c.fechaInicio),
-      fechaFin: fmtDateShort(c.fechaFin),
       activo: c.activo,
       horarios: c.horarios.map((h) => ({
         id: h.id,

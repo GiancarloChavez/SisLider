@@ -15,7 +15,7 @@ function diaNombre(isoDate: string): string {
 
 export type HorarioAsistenciaOption = {
   id: string;
-  curso: { nombre: string; nivel: string | null };
+  curso: { nombre: string };
   docente: { nombre: string; apellido: string };
   aula: { nombre: string };
   dias: string[];
@@ -38,20 +38,14 @@ export async function getHorariosActivos(): Promise<HorarioAsistenciaOption[]> {
   hoy.setHours(0, 0, 0, 0);
 
   const horarios = await prisma.horario.findMany({
-    where: {
-      activo: true,
-      curso: {
-        fechaInicio: { lte: hoy }, // Solo cursos ya aperturados
-        fechaFin: { gte: hoy },
-      },
-    },
+    where: { activo: true, curso: { activo: true } },
     include: { curso: true, docente: true, aula: true, dias: true },
     orderBy: { horaInicio: "asc" },
   });
 
   return horarios.map((h) => ({
     id: h.id,
-    curso: { nombre: h.curso.nombre, nivel: h.curso.nivel },
+    curso: { nombre: h.curso.nombre },
     docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
     aula: { nombre: h.aula.nombre },
     dias: h.dias.map((d) => d.dia),

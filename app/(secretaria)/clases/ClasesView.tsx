@@ -84,12 +84,7 @@ function AlumnosList({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/60 shrink-0">
-        <p className="text-sm font-semibold text-zinc-900">
-          {curso.nombre}
-          {curso.nivel && (
-            <span className="ml-1.5 text-xs font-normal text-zinc-400">{curso.nivel}</span>
-          )}
-        </p>
+        <p className="text-sm font-semibold text-zinc-900">{curso.nombre}</p>
         <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />

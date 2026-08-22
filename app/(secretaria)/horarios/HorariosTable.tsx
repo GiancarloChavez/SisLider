@@ -156,9 +156,6 @@ export function HorariosTable({ horarios, selectData }: Props) {
                 <TableRow key={h.id} className="transition-colors duration-100 hover:bg-zinc-50/70">
                   <TableCell>
                     <p className="font-medium text-zinc-900">{h.curso.nombre}</p>
-                    {h.curso.nivel && (
-                      <p className="text-xs text-zinc-400 mt-0.5">{h.curso.nivel}</p>
-                    )}
                   </TableCell>
                   <TableCell className="text-sm font-medium text-zinc-700">
                     {h.numeroGrupo}

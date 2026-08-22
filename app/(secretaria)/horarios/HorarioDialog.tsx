@@ -376,6 +376,30 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
             </div>
           </div>
 
+          {/* ── Período del grupo (opcional) ─────────────────────────── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="fechaInicio">Fecha de inicio</Label>
+              <input
+                id="fechaInicio"
+                name="fechaInicio"
+                type="date"
+                defaultValue={horario?.fechaInicio ?? ""}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="fechaFin">Fecha de fin</Label>
+              <input
+                id="fechaFin"
+                name="fechaFin"
+                type="date"
+                defaultValue={horario?.fechaFin ?? ""}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Días *</Label>
             <div className="flex flex-wrap gap-x-4 gap-y-2">

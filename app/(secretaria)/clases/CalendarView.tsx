@@ -35,6 +35,16 @@ const PALETTE = [
   { bg: "bg-rose-100/70",    border: "border-rose-200",    bar: "bg-rose-400",    text: "text-rose-900",    sub: "text-rose-700/70",    dot: "bg-rose-400"    },
   { bg: "bg-amber-100/70",   border: "border-amber-200",   bar: "bg-amber-400",   text: "text-amber-900",   sub: "text-amber-700/70",   dot: "bg-amber-400"   },
   { bg: "bg-cyan-100/70",    border: "border-cyan-200",    bar: "bg-cyan-400",    text: "text-cyan-900",    sub: "text-cyan-700/70",    dot: "bg-cyan-400"    },
+  { bg: "bg-lime-100/70",    border: "border-lime-200",    bar: "bg-lime-400",    text: "text-lime-900",    sub: "text-lime-700/70",    dot: "bg-lime-400"    },
+  { bg: "bg-sky-100/70",     border: "border-sky-200",     bar: "bg-sky-400",     text: "text-sky-900",     sub: "text-sky-700/70",     dot: "bg-sky-400"     },
+  { bg: "bg-fuchsia-100/70", border: "border-fuchsia-200", bar: "bg-fuchsia-400", text: "text-fuchsia-900", sub: "text-fuchsia-700/70", dot: "bg-fuchsia-400" },
+  { bg: "bg-red-100/70",     border: "border-red-200",     bar: "bg-red-400",     text: "text-red-900",     sub: "text-red-700/70",     dot: "bg-red-400"     },
+  { bg: "bg-yellow-100/70",  border: "border-yellow-200",  bar: "bg-yellow-400",  text: "text-yellow-900",  sub: "text-yellow-700/70",  dot: "bg-yellow-400"  },
+  { bg: "bg-purple-100/70",  border: "border-purple-200",  bar: "bg-purple-400",  text: "text-purple-900",  sub: "text-purple-700/70",  dot: "bg-purple-400"  },
+  { bg: "bg-green-100/70",   border: "border-green-200",   bar: "bg-green-400",   text: "text-green-900",   sub: "text-green-700/70",   dot: "bg-green-400"   },
+  { bg: "bg-slate-100/70",   border: "border-slate-200",   bar: "bg-slate-400",   text: "text-slate-900",   sub: "text-slate-700/70",   dot: "bg-slate-400"   },
+  { bg: "bg-stone-100/70",   border: "border-stone-200",   bar: "bg-stone-400",   text: "text-stone-900",   sub: "text-stone-700/70",   dot: "bg-stone-400"   },
+  { bg: "bg-zinc-100/70",    border: "border-zinc-300",    bar: "bg-zinc-400",    text: "text-zinc-900",    sub: "text-zinc-600/70",    dot: "bg-zinc-400"    },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

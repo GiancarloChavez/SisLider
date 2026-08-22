@@ -214,11 +214,6 @@ export function AsistenciasView({ horarios }: Props) {
                     >
                       <p className={cn("text-sm font-semibold leading-tight", active ? "text-white" : "text-zinc-900")}>
                         {h.curso.nombre}
-                        {h.curso.nivel && (
-                          <span className={cn("ml-1.5 text-xs font-normal", active ? "text-zinc-300" : "text-zinc-400")}>
-                            {h.curso.nivel}
-                          </span>
-                        )}
                       </p>
                       <p className={cn("text-xs mt-0.5", active ? "text-zinc-300" : "text-zinc-500")}>
                         {h.horaInicio}–{h.horaFin} · {h.aula.nombre}

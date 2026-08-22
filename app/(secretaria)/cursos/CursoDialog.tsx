@@ -24,7 +24,6 @@ const initialState: CursoFormState = {};
 
 export function CursoDialog({ open, onClose, curso }: Props) {
   const action = curso ? updateCurso.bind(null, curso.id) : createCurso;
-
   const [state, formAction, pending] = useActionState(action, initialState);
   const [handled, setHandled] = useState(false);
 
@@ -38,7 +37,7 @@ export function CursoDialog({ open, onClose, curso }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{curso ? "Editar curso" : "Nuevo curso"}</DialogTitle>
         </DialogHeader>
@@ -55,47 +54,6 @@ export function CursoDialog({ open, onClose, curso }: Props) {
             {state.errors?.nombre && (
               <p className="text-xs text-destructive">{state.errors.nombre[0]}</p>
             )}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="nivel">Nivel</Label>
-            <Input
-              id="nivel"
-              name="nivel"
-              defaultValue={curso?.nivel ?? ""}
-              placeholder="Ej: Básico, Intermedio, Avanzado"
-            />
-            {state.errors?.nivel && (
-              <p className="text-xs text-destructive">{state.errors.nivel[0]}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="fechaInicio">Fecha de inicio *</Label>
-              <Input
-                id="fechaInicio"
-                name="fechaInicio"
-                type="date"
-                defaultValue={curso?.fechaInicio ?? ""}
-              />
-              {state.errors?.fechaInicio && (
-                <p className="text-xs text-destructive">{state.errors.fechaInicio[0]}</p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="fechaFin">Fecha de fin *</Label>
-              <Input
-                id="fechaFin"
-                name="fechaFin"
-                type="date"
-                defaultValue={curso?.fechaFin ?? ""}
-              />
-              {state.errors?.fechaFin && (
-                <p className="text-xs text-destructive">{state.errors.fechaFin[0]}</p>
-              )}
-            </div>
           </div>
 
           <DialogFooter>

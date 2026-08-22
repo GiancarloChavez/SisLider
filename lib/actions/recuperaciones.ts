@@ -12,7 +12,7 @@ export type AusenciaSinRecuperacion = {
   estadoAsistencia: string;
   observacion: string | null;
   alumno: { id: string; nombre: string; apellido: string; dni: string | null };
-  curso: { nombre: string; nivel: string | null };
+  curso: { nombre: string };
   horario: { horaInicio: string; horaFin: string };
 };
 
@@ -26,7 +26,7 @@ export type RecuperacionRow = {
     fecha: string;
     estadoAsistencia: string;
     alumno: { id: string; nombre: string; apellido: string; dni: string | null };
-    curso: { nombre: string; nivel: string | null };
+    curso: { nombre: string };
   };
   horarioRecuperacion: {
     id: string;
@@ -81,7 +81,6 @@ export async function getAusenciasSinRecuperacion(): Promise<AusenciaSinRecupera
     },
     curso: {
       nombre: a.matricula.horario.curso.nombre,
-      nivel: a.matricula.horario.curso.nivel,
     },
     horario: {
       horaInicio: a.matricula.horario.horaInicio.toISOString().slice(11, 16),
@@ -99,7 +98,7 @@ export async function getRecuperaciones(): Promise<RecuperacionRow[]> {
             include: {
               alumno: { select: { id: true, nombre: true, apellido: true, dni: true } },
               horario: {
-                include: { curso: { select: { nombre: true, nivel: true } } },
+                include: { curso: { select: { nombre: true } } },
               },
             },
           },
@@ -129,7 +128,6 @@ export async function getRecuperaciones(): Promise<RecuperacionRow[]> {
       },
       curso: {
         nombre: r.asistencia.matricula.horario.curso.nombre,
-        nivel: r.asistencia.matricula.horario.curso.nivel,
       },
     },
     horarioRecuperacion: r.horario
@@ -148,7 +146,7 @@ export async function getHorariosParaRecuperacion(): Promise<HorarioRecuperacion
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const horarios = await prisma.horario.findMany({
-    where: { activo: true, curso: { activo: true, fechaFin: { gte: hoy } } },
+    where: { activo: true, curso: { activo: true } },
     include: { curso: true, dias: true },
     orderBy: { horaInicio: "asc" },
   });
@@ -166,7 +164,7 @@ export async function getHorariosParaRecuperacion(): Promise<HorarioRecuperacion
       .join("/");
     return {
       id: h.id,
-      label: `${h.curso.nombre}${h.curso.nivel ? ` (${h.curso.nivel})` : ""} — ${diasStr} ${h.horaInicio.toISOString().slice(11,16)}–${h.horaFin.toISOString().slice(11,16)}`,
+      label: `${h.curso.nombre} — ${diasStr} ${h.horaInicio.toISOString().slice(11,16)}–${h.horaFin.toISOString().slice(11,16)}`,
     };
   });
 }

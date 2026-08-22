@@ -86,7 +86,6 @@ function CrearRecuperacionDialog({
           <DialogTitle>Agendar recuperación</DialogTitle>
           <DialogDescription>
             Ausencia del {fmtFecha(ausencia.fecha)} — {ausencia.curso.nombre}
-            {ausencia.curso.nivel ? ` (${ausencia.curso.nivel})` : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -379,9 +378,6 @@ export function RecuperacionesView({ ausencias, recuperaciones, horarios }: Prop
                     </TableCell>
                     <TableCell>
                       <p className="text-sm text-zinc-800">{a.curso.nombre}</p>
-                      {a.curso.nivel && (
-                        <p className="text-xs text-zinc-400">{a.curso.nivel}</p>
-                      )}
                     </TableCell>
                     <TableCell>
                       <p className="text-sm text-zinc-700">{fmtFecha(a.fecha)}</p>
@@ -530,9 +526,6 @@ function RecuperacionesGroup({
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-zinc-800">{r.asistencia.curso.nombre}</p>
-                  {r.asistencia.curso.nivel && (
-                    <p className="text-xs text-zinc-400">{r.asistencia.curso.nivel}</p>
-                  )}
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-zinc-700">{fmtFecha(r.asistencia.fecha)}</p>

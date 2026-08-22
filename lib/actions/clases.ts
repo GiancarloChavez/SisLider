@@ -11,7 +11,7 @@ export type HorarioCalendario = {
   horaFin: string;
   dias: string[];
   cupoOcupado: number;
-  curso: { id: string; nombre: string; nivel: string | null };
+  curso: { id: string; nombre: string };
   docente: { nombre: string; apellido: string };
   aula: { nombre: string; capacidad: number };
 };
@@ -22,7 +22,7 @@ export const getHorariosCalendario = unstable_cache(
       prisma.horario.findMany({
         where: { activo: true },
         include: {
-          curso: { select: { id: true, nombre: true, nivel: true } },
+          curso: { select: { id: true, nombre: true } },
           docente: true,
           aula: true,
           dias: true,
@@ -45,7 +45,7 @@ export const getHorariosCalendario = unstable_cache(
       horaFin: h.horaFin.toISOString().slice(11, 16),
       dias: h.dias.map((d) => d.dia),
       cupoOcupado: countMap[h.id] ?? 0,
-      curso: { id: h.curso.id, nombre: h.curso.nombre, nivel: h.curso.nivel },
+      curso: { id: h.curso.id, nombre: h.curso.nombre },
       docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
       aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
     }));
@@ -70,7 +70,6 @@ export type HorarioResumen = {
 export type CursoConHorarios = {
   id: string;
   nombre: string;
-  nivel: string | null;
   precioMensual: number;
   activo: boolean;
   horarios: HorarioResumen[];
@@ -110,7 +109,6 @@ export const getCursosConHorarios = unstable_cache(
     return cursos.map((c) => ({
       id: c.id,
       nombre: c.nombre,
-      nivel: c.nivel,
       precioMensual: Number(c.precioMensual),
       activo: c.activo,
       horarios: c.horarios.map((h) => ({

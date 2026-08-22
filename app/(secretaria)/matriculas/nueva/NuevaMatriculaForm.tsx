@@ -787,14 +787,13 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                       <div>
                         <div className="flex items-center gap-1.5">
                           <p className="font-semibold text-zinc-900 text-sm leading-tight">{h.curso.nombre}</p>
-                          {h.cursoProximo && (
+                          {h.grupoProximo && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-1.5 py-0 text-[10px] font-semibold text-blue-600">
                               <Clock className="h-2.5 w-2.5" /> Próximo
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-zinc-500 font-medium">{h.numeroGrupo}</p>
-                        {h.curso.nivel && <p className="text-xs text-zinc-400">{h.curso.nivel}</p>}
+                        <p className="text-xs text-zinc-500 font-medium">Grupo {h.numeroGrupo}</p>
                       </div>
                       {selected && <CheckCircle2 className="h-4 w-4 text-zinc-900 shrink-0 mt-0.5" />}
                     </div>
@@ -807,9 +806,9 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                       ))}
                       <span className="text-xs text-zinc-400 font-mono ml-1">{h.horaInicio}–{h.horaFin}</span>
                     </div>
-                    {h.cursoProximo && (
+                    {h.grupoProximo && h.fechaInicio && (
                       <p className="text-xs text-blue-600 font-medium mb-2">
-                        Apertura: {new Date(h.cursoFechaInicio + "T00:00:00").toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" })}
+                        Apertura: {new Date(h.fechaInicio + "T00:00:00").toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" })}
                       </p>
                     )}
                     <div className="flex items-center justify-between pt-2 border-t border-zinc-100">

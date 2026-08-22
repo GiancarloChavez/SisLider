@@ -375,9 +375,6 @@ function MatriculaCard({
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-zinc-900">{horario.curso.nombre}</span>
-            {horario.curso.nivel && (
-              <span className="text-xs text-zinc-400 bg-zinc-200/60 rounded px-1.5 py-0.5">{horario.curso.nivel}</span>
-            )}
             <span className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium",
               matricula.estado === "activa"

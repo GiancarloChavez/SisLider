@@ -43,7 +43,7 @@ export type MatriculaRow = {
   precioFinalMensual: number;
   diasMatricula: string[];
   horario: {
-    curso: { nombre: string; nivel: string | null };
+    curso: { nombre: string };
     dias: string[];
     horaInicio: string;
     horaFin: string;
@@ -159,7 +159,7 @@ export async function getAlumnoPagos(alumnoId: string): Promise<AlumnoPagoDetall
       precioFinalMensual: Number(m.precioFinalMensual),
       diasMatricula: m.dias.map((d) => d.dia),
       horario: {
-        curso: { nombre: m.horario.curso.nombre, nivel: m.horario.curso.nivel },
+        curso: { nombre: m.horario.curso.nombre },
         dias: m.horario.dias.map((d) => d.dia),
         horaInicio: m.horario.horaInicio.toISOString().slice(11, 16),
         horaFin: m.horario.horaFin.toISOString().slice(11, 16),

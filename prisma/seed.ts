@@ -281,13 +281,13 @@ async function crearInfraestructura() {
 
   await prisma.curso.createMany({
     data: [
-      { id: IDS.c1, nombre: "Modelaje",         nivel: "Básico–Avanzado",            precioMensual: 250, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
-      { id: IDS.c2, nombre: "Fotografía",       nivel: "Básico–Avanzado",            precioMensual: 230, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
-      { id: IDS.c3, nombre: "Ajedrez",          nivel: "Iniciación–Competitivo",     precioMensual: 150, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
-      { id: IDS.c4, nombre: "Oratoria",         nivel: "Básico–Intensivo",           precioMensual: 180, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
-      { id: IDS.c5, nombre: "Pintura",          nivel: "Básico–Avanzado",            precioMensual: 200, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
-      { id: IDS.c6, nombre: "Violín",           nivel: "Principiantes–Intermedio",   precioMensual: 280, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
-      { id: IDS.c7, nombre: "Edición de Video", nivel: "Básico–Profesional",         precioMensual: 260, fechaInicio: new Date("2026-01-01"), fechaFin: new Date("2026-12-31"), activo: true },
+      { id: IDS.c1, nombre: "Modelaje",         precioMensual: 250, activo: true },
+      { id: IDS.c2, nombre: "Fotografía",       precioMensual: 230, activo: true },
+      { id: IDS.c3, nombre: "Ajedrez",          precioMensual: 150, activo: true },
+      { id: IDS.c4, nombre: "Oratoria",         precioMensual: 180, activo: true },
+      { id: IDS.c5, nombre: "Pintura",          precioMensual: 200, activo: true },
+      { id: IDS.c6, nombre: "Violín",           precioMensual: 280, activo: true },
+      { id: IDS.c7, nombre: "Edición de Video", precioMensual: 260, activo: true },
     ],
   });
 }

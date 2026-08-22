@@ -11,11 +11,13 @@ export type HorarioSerialized = {
   idAula: string;
   numeroGrupo: string;
   precioMensual: number;
+  fechaInicio?: string;
+  fechaFin?: string;
   horaInicio: string;
   horaFin: string;
   activo: boolean;
   createdAt: string;
-  curso: { nombre: string; nivel: string | null };
+  curso: { nombre: string };
   docente: { nombre: string; apellido: string };
   aula: { nombre: string; capacidad: number };
   dias: string[];
@@ -35,12 +37,10 @@ export type HorarioFormState = {
 };
 
 export async function getHorarioSelectData(): Promise<HorarioSelectData> {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
   const [cursos, docentes, aulas] = await Promise.all([
     prisma.curso.findMany({
-      where: { activo: true, fechaFin: { gte: hoy } }, // Incluye próximos
-      orderBy: [{ fechaInicio: "asc" }, { nombre: "asc" }],
+      where: { activo: true },
+      orderBy: { nombre: "asc" },
     }),
     prisma.docente.findMany({
       where: { activo: true },
@@ -49,10 +49,7 @@ export async function getHorarioSelectData(): Promise<HorarioSelectData> {
     prisma.aula.findMany({ where: { activa: true }, orderBy: { nombre: "asc" } }),
   ]);
   return {
-    cursos: cursos.map((c) => ({
-      id: c.id,
-      label: c.nivel ? `${c.nombre} (${c.nivel})` : c.nombre,
-    })),
+    cursos: cursos.map((c) => ({ id: c.id, label: c.nombre })),
     docentes: docentes.map((d) => ({ id: d.id, label: `${d.apellido}, ${d.nombre}` })),
     aulas: aulas.map((a) => ({ id: a.id, label: a.nombre })),
   };
@@ -76,6 +73,8 @@ const horarioSchema = z
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
     horaFin: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
     dias: z.array(z.string()).min(1, "Selecciona al menos un día"),
+    fechaInicio: z.string().optional(),
+    fechaFin: z.string().optional(),
   })
   .refine((d) => d.horaFin > d.horaInicio, {
     message: "La hora de fin debe ser posterior a la de inicio",
@@ -117,10 +116,18 @@ export async function createHorario(
     numeroGrupo = String(num.data);
   }
 
-  const { dias, horaInicio, horaFin, ...rest } = parsed.data;
+  const { dias, horaInicio, horaFin, fechaInicio, fechaFin, ...rest } = parsed.data;
   try {
     await prisma.horario.create({
-      data: { ...rest, numeroGrupo, horaInicio: parseTime(horaInicio), horaFin: parseTime(horaFin), dias: { create: dias.map((dia) => ({ dia })) } },
+      data: {
+        ...rest,
+        numeroGrupo,
+        horaInicio: parseTime(horaInicio),
+        horaFin: parseTime(horaFin),
+        fechaInicio: fechaInicio ? new Date(fechaInicio) : null,
+        fechaFin: fechaFin ? new Date(fechaFin) : null,
+        dias: { create: dias.map((dia) => ({ dia })) },
+      },
     });
   } catch (e: unknown) {
     if ((e as { code?: string }).code === "P2002") {
@@ -157,7 +164,7 @@ export async function updateHorario(
   if (!num.success) return { errors: { numeroGrupo: num.error.issues.map((e) => e.message) } };
   const numeroGrupo = String(num.data);
 
-  const { dias, horaInicio, horaFin, ...rest } = parsed.data;
+  const { dias, horaInicio, horaFin, fechaInicio, fechaFin, ...rest } = parsed.data;
   try {
     await prisma.horario.update({
       where: { id },
@@ -166,6 +173,8 @@ export async function updateHorario(
         numeroGrupo,
         horaInicio: parseTime(horaInicio),
         horaFin: parseTime(horaFin),
+        fechaInicio: fechaInicio ? new Date(fechaInicio) : null,
+        fechaFin: fechaFin ? new Date(fechaFin) : null,
         dias: { deleteMany: {}, create: dias.map((dia) => ({ dia })) },
       },
     });

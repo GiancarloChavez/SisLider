@@ -156,9 +156,6 @@ function EventCard({
           color.text
         )}>
           {horario.curso.nombre}
-          {horario.curso.nivel && !compact && (
-            <span className="ml-1 font-normal opacity-70">{horario.curso.nivel}</span>
-          )}
         </p>
 
         {!compact && (
@@ -441,7 +438,6 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle, fillHeigh
               >
                 <div className={cn("w-2 h-2 rounded-full shrink-0", color.dot)} />
                 {curso.nombre}
-                {curso.nivel && <span className="opacity-60">· {curso.nivel}</span>}
               </div>
             );
           })}

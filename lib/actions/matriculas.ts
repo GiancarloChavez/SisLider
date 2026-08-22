@@ -20,15 +20,16 @@ export type HorarioConCupo = {
   id: string;
   numeroGrupo: string;
   precioMensual: number;
+  fechaInicio?: string;
+  fechaFin?: string;
   horaInicio: string;
   horaFin: string;
   cupoOcupado: number;
   dias: string[];
-  curso: { nombre: string; nivel: string | null };
+  curso: { nombre: string };
   docente: { nombre: string; apellido: string };
   aula: { nombre: string; capacidad: number };
-  cursoProximo: boolean;
-  cursoFechaInicio: string;
+  grupoProximo: boolean;
 };
 
 export type DescuentoOption = {
@@ -41,9 +42,6 @@ export type DescuentoOption = {
 export type CursoConMatriculas = {
   id: string;
   nombre: string;
-  nivel: string | null;
-  fechaInicio: string;
-  fechaFin: string;
   activo: boolean;
   totalAlumnos: number;
   cupoTotal: number;
@@ -106,13 +104,7 @@ export async function getMatriculaFormData(): Promise<{
 
   const [horariosRaw, descuentosRaw] = await Promise.all([
     prisma.horario.findMany({
-      where: {
-        activo: true,
-        curso: {
-          activo: true,
-          fechaFin: { gte: hoy }, // Incluye próximos; excluye finalizados
-        },
-      },
+      where: { activo: true, curso: { activo: true } },
       include: {
         curso: true,
         docente: true,
@@ -120,7 +112,7 @@ export async function getMatriculaFormData(): Promise<{
         dias: true,
         _count: { select: { matriculas: { where: { estado: "activa" } } } },
       },
-      orderBy: [{ curso: { fechaInicio: "asc" } }, { curso: { nombre: "asc" } }],
+      orderBy: [{ curso: { nombre: "asc" } }, { numeroGrupo: "asc" }],
     }),
     prisma.descuento.findMany({
       where: { activo: true },
@@ -136,14 +128,12 @@ export async function getMatriculaFormData(): Promise<{
     horaFin: h.horaFin.toISOString().slice(11, 16),
     cupoOcupado: h._count.matriculas,
     dias: h.dias.map((d) => d.dia),
-    curso: {
-      nombre: h.curso.nombre,
-      nivel: h.curso.nivel,
-    },
+    fechaInicio: h.fechaInicio ? h.fechaInicio.toISOString().slice(0, 10) : undefined,
+    fechaFin: h.fechaFin ? h.fechaFin.toISOString().slice(0, 10) : undefined,
+    curso: { nombre: h.curso.nombre },
     docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },
     aula: { nombre: h.aula.nombre, capacidad: h.aula.capacidad },
-    cursoProximo: h.curso.fechaInicio > hoy,
-    cursoFechaInicio: h.curso.fechaInicio.toISOString().slice(0, 10),
+    grupoProximo: h.fechaInicio ? h.fechaInicio > hoy : false,
   }));
 
   const descuentos: DescuentoOption[] = descuentosRaw.map((d) => ({
@@ -176,9 +166,6 @@ export async function getCursosConMatriculas(): Promise<CursoConMatriculas[]> {
   return cursos.map((c) => ({
     id: c.id,
     nombre: c.nombre,
-    nivel: c.nivel,
-    fechaInicio: c.fechaInicio.toISOString().slice(0, 10),
-    fechaFin: c.fechaFin.toISOString().slice(0, 10),
     activo: c.activo,
     totalAlumnos: c.horarios.reduce((s, h) => s + h._count.matriculas, 0),
     cupoTotal: c.horarios.reduce((s, h) => s + h.aula.capacidad, 0),

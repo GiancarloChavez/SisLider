@@ -51,15 +51,15 @@ export function ReporteCursos({ data }: { data: ReporteCursosData }) {
 
         {/* ── Por curso ───────────────────────────────────────────── */}
         {data.cursos.map((curso) => (
-          <View key={curso.nombre + curso.nivel} style={[S.section, S.courseCard]}>
+          <View key={curso.nombre} style={[S.section, S.courseCard]}>
             {/* Course header */}
             <View style={S.courseCardHeader}>
               <View>
                 <Text style={S.courseCardHeaderText}>
-                  {curso.nombre}{curso.nivel ? ` — ${curso.nivel}` : ""}
+                  {curso.nombre}
                 </Text>
                 <Text style={S.courseCardHeaderSub}>
-                  {curso.fechaInicio} al {curso.fechaFin}  ·  S/{curso.precioMensual.toFixed(2)}/mes
+                  S/{curso.precioMensual.toFixed(2)}/mes
                 </Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
