@@ -10,7 +10,7 @@ import type { HorarioCalendario } from "@/lib/actions/clases";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] as const;
-const HOUR_START = 0;
+const HOUR_START = 6;
 const HOUR_END = 24;
 const PX_PER_HOUR = 72;
 const TOTAL_HEIGHT = (HOUR_END - HOUR_START) * PX_PER_HOUR;
@@ -187,9 +187,10 @@ type Props = {
   horarios: HorarioCalendario[];
   title?: string;
   subtitle?: string;
+  fillHeight?: boolean;
 };
 
-export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) {
+export function ClasesCalendar({ horarios, title = "Clases", subtitle, fillHeight = false }: Props) {
   const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentMinutes, setCurrentMinutes] = useState<number | null>(null);
@@ -238,9 +239,9 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
   const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn("flex flex-col gap-4", fillHeight && "h-full min-h-0")}>
       {/* ── Page header ──────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between shrink-0">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
@@ -288,11 +289,14 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
       </div>
 
       {/* ── Calendar grid ────────────────────────────────────── */}
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
+      <div className={cn(
+        "rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-sm",
+        fillHeight && "flex flex-col flex-1 min-h-0"
+      )}>
 
         {/* Day header row */}
         <div
-          className="grid border-b border-zinc-200 bg-white"
+          className="grid border-b border-zinc-200 bg-white shrink-0"
           style={{ gridTemplateColumns: `${TIME_COL_W}px repeat(6, 1fr)` }}
         >
           <div className="py-3" />
@@ -325,7 +329,10 @@ export function ClasesCalendar({ horarios, title = "Clases", subtitle }: Props) 
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
+        <div
+          className={cn("overflow-y-auto", fillHeight && "flex-1 min-h-0")}
+          style={fillHeight ? undefined : { maxHeight: "calc(100vh - 260px)" }}
+        >
           {horarios.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-zinc-400 gap-2">
               <CalendarDays className="h-10 w-10 opacity-30" />

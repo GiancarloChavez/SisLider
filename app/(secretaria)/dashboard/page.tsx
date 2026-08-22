@@ -192,7 +192,7 @@ export default async function DashboardPage({
       {activeTab === "dashboard" && (
         <>
           {/* Header */}
-          <div>
+          <div className="pt-3">
             <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
             <p className="text-sm text-zinc-500 mt-0.5">
               {new Date().toLocaleDateString("es-PE", {
@@ -202,29 +202,19 @@ export default async function DashboardPage({
           </div>
 
           {/* ── Calendario + KPI sidebar ──────────────────────────────────── */}
-          <div className="flex gap-4 items-start">
+          <div className="flex gap-4 items-stretch h-[480px]">
 
             {/* Calendario — ocupa la mayor parte */}
-            <div className="flex-1 min-w-0 rounded-xl bg-white border border-zinc-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-zinc-100">
-                <p className="text-sm font-semibold text-zinc-900">Horario semanal</p>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  {horarios.length === 0
-                    ? "No hay horarios activos"
-                    : `${horarios.length} horario${horarios.length !== 1 ? "s" : ""} activo${horarios.length !== 1 ? "s" : ""}`}
-                </p>
-              </div>
-              <div className="p-3">
-                <ClasesCalendar horarios={horarios} title="" subtitle="" />
-              </div>
+            <div className="flex-1 min-w-0 flex flex-col">
+              <ClasesCalendar horarios={horarios} title="Horario semanal" fillHeight />
             </div>
 
-            {/* KPI cards — columna lateral */}
-            <div className="w-48 shrink-0 flex flex-col gap-3">
+            {/* KPI cards — columna lateral, misma altura que el calendario */}
+            <div className="w-48 shrink-0 flex flex-col gap-4">
               {kpiCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
                 <div
                   key={label}
-                  className="rounded-xl bg-white border border-zinc-200 p-4 shadow-sm"
+                  className="flex-1 rounded-xl bg-white border border-zinc-200 p-4 shadow-sm flex flex-col justify-center"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-zinc-500 leading-tight">{label}</span>
@@ -251,7 +241,7 @@ export default async function DashboardPage({
       {/* ── CLASES TAB ───────────────────────────────────────────────────────── */}
       {activeTab === "clases" && cursosClases !== null && (
         <>
-          <div>
+          <div className="pt-3">
             <h1 className="text-2xl font-bold text-zinc-900">Clases</h1>
             <p className="text-sm text-zinc-500 mt-0.5">
               {cursosClases.length} curso{cursosClases.length !== 1 ? "s" : ""} ·{" "}
