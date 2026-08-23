@@ -3,6 +3,15 @@ import type { NextAuthConfig } from "next-auth";
 export const authConfig = {
   pages: { signIn: "/login" },
   callbacks: {
+    session({ session, token }) {
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          rol: (token.rol ?? "admin") as string,
+        },
+      };
+    },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn    = !!auth?.user;
       const isLoginPage   = nextUrl.pathname === "/login";
