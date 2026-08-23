@@ -91,6 +91,8 @@ function CredencialesPanel({
 
 // ─── Main dialog ──────────────────────────────────────────────────────────────
 
+type DniStatus = 'idle' | 'loading' | 'found' | 'not_found';
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -108,15 +110,14 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
   const [dniVal,      setDniVal]      = useState("");
   const [nombreVal,   setNombreVal]   = useState(docente?.nombre  ?? "");
   const [apellidoVal, setApellidoVal] = useState(docente?.apellido ?? "");
-  const [dniLoading,  setDniLoading]  = useState(false);
-  const [dniOk,       setDniOk]       = useState(false);
+  const [dniStatus,   setDniStatus]   = useState<DniStatus>('idle');
 
   // Reset on open
   useEffect(() => {
     if (!open) return;
     if (!docente) {
       setDniVal(""); setNombreVal(""); setApellidoVal("");
-      setDniOk(false);
+      setDniStatus('idle');
     } else {
       setNombreVal(docente.nombre);
       setApellidoVal(docente.apellido);
@@ -126,24 +127,34 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
 
   // RENIEC lookup
   useEffect(() => {
-    if (!/^\d{8}$/.test(dniVal)) { setDniOk(false); return; }
+    if (!/^\d{8}$/.test(dniVal)) { setDniStatus('idle'); return; }
     let cancelled = false;
-    setDniLoading(true);
+    setDniStatus('loading');
+
     fetch(`/api/dni/${dniVal}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+      .then(async (r) => {
         if (cancelled) return;
-        if (data?.nombre) {
-          setNombreVal(data.nombre);
-          setApellidoVal(data.apellido);
-          setDniOk(true);
+        if (r.ok) {
+          const data = await r.json();
+          if (!cancelled) {
+            if (data?.nombre) {
+              setNombreVal(data.nombre);
+              setApellidoVal(data.apellido);
+              setDniStatus('found');
+            } else {
+              setDniStatus('not_found');
+            }
+          }
+        } else if (!cancelled) {
+          setDniStatus('not_found');
         }
       })
-      .finally(() => { if (!cancelled) setDniLoading(false); });
+      .catch(() => { if (!cancelled) setDniStatus('not_found'); });
+
     return () => { cancelled = true; };
   }, [dniVal]);
 
-  // Close on update success (state.message === "ok")
+  // Close on update success
   useEffect(() => {
     if (state.message === "ok" && !handled) {
       setHandled(true);
@@ -153,6 +164,9 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
   }, [state.message, handled, onClose]);
 
   const e = state.errors ?? {};
+
+  // nombre/apellido son readonly cuando es nuevo docente y el DNI no falló en RENIEC
+  const camposReadOnly = !docente && dniStatus !== 'not_found';
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -186,7 +200,7 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                     value={dniVal}
                     onChange={(ev) => {
                       setDniVal(ev.target.value);
-                      setDniOk(false);
+                      setDniStatus('idle');
                       setNombreVal("");
                       setApellidoVal("");
                     }}
@@ -194,17 +208,27 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                     maxLength={8}
                     inputMode="numeric"
                   />
-                  {dniLoading && (
+                  {dniStatus === 'loading' && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">
                       buscando...
                     </span>
                   )}
-                  {dniOk && !dniLoading && (
+                  {dniStatus === 'found' && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">
                       ✓ RENIEC
                     </span>
                   )}
+                  {dniStatus === 'not_found' && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-red-500 font-semibold">
+                      ✗
+                    </span>
+                  )}
                 </div>
+                {dniStatus === 'not_found' && (
+                  <p className="text-xs text-amber-600">
+                    No encontrado en RENIEC. Ingresa el nombre manualmente.
+                  </p>
+                )}
                 {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
               </div>
             )}
@@ -225,8 +249,8 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                   name="nombre"
                   value={nombreVal}
                   onChange={(ev) => setNombreVal(ev.target.value)}
-                  readOnly={!docente}
-                  className={cn(!docente && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  readOnly={camposReadOnly}
+                  className={cn(camposReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="Carlos"
                 />
                 {e.nombre && <p className="text-xs text-destructive">{e.nombre[0]}</p>}
@@ -238,8 +262,8 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                   name="apellido"
                   value={apellidoVal}
                   onChange={(ev) => setApellidoVal(ev.target.value)}
-                  readOnly={!docente}
-                  className={cn(!docente && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  readOnly={camposReadOnly}
+                  className={cn(camposReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="García"
                 />
                 {e.apellido && <p className="text-xs text-destructive">{e.apellido[0]}</p>}

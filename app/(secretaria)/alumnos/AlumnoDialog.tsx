@@ -40,6 +40,25 @@ const SELECT_CLASS =
 const ANIO_ACTUAL = new Date().getFullYear();
 const ANIOS = Array.from({ length: ANIO_ACTUAL - 1929 }, (_, i) => ANIO_ACTUAL - i);
 
+// ─── DNI status types ─────────────────────────────────────────────────────────
+
+type DniStatus = 'idle' | 'loading' | 'found' | 'not_found';
+
+// ─── DNI status indicator ─────────────────────────────────────────────────────
+
+function DniStatusBadge({ status }: { status: DniStatus }) {
+  if (status === 'loading') return (
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
+  );
+  if (status === 'found') return (
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
+  );
+  if (status === 'not_found') return (
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-red-500 font-semibold">✗</span>
+  );
+  return null;
+}
+
 export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const action = alumno ? updateAlumno.bind(null, alumno.id) : createAlumno;
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -53,76 +72,86 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
   const [dniVal,      setDniVal]      = useState(alumno?.dni      ?? "");
   const [nombreVal,   setNombreVal]   = useState(alumno?.nombre   ?? "");
   const [apellidoVal, setApellidoVal] = useState(alumno?.apellido ?? "");
-  const [dniLoading,  setDniLoading]  = useState(false);
-  const [dniOk,       setDniOk]       = useState(false);
+  const [dniStatus,   setDniStatus]   = useState<DniStatus>('idle');
 
-  // ── Toggles "usar DNI" (checked = busca por DNI) ────────────
+  // ── Toggle "usar DNI" ────────────────────────────────────────
   const [usaDni,       setUsaDni]       = useState(true);
   const [usaTutorDni,  setUsaTutorDni]  = useState(true);
   const [usaTutor2Dni, setUsaTutor2Dni] = useState(true);
 
-  // ── DNI lookup apoderado principal (no se guarda) ────────────
-  const [tutorDni,         setTutorDni]         = useState("");
-  const [tutorNombreVal,   setTutorNombreVal]   = useState("");
-  const [tutorApellidoVal, setTutorApellidoVal] = useState("");
-  const [tutorDniLoading,  setTutorDniLoading]  = useState(false);
-  const [tutorDniOk,       setTutorDniOk]       = useState(false);
+  // ── DNI lookup apoderado principal ───────────────────────────
+  const [tutorDni,          setTutorDni]          = useState("");
+  const [tutorNombreVal,    setTutorNombreVal]    = useState("");
+  const [tutorApellidoVal,  setTutorApellidoVal]  = useState("");
+  const [tutorDniStatus,    setTutorDniStatus]    = useState<DniStatus>('idle');
 
-  // ── DNI lookup apoderado adicional (no se guarda) ────────────
-  const [tutor2Dni,         setTutor2Dni]         = useState("");
-  const [tutor2NombreVal,   setTutor2NombreVal]   = useState("");
-  const [tutor2ApellidoVal, setTutor2ApellidoVal] = useState("");
-  const [tutor2DniLoading,  setTutor2DniLoading]  = useState(false);
-  const [tutor2DniOk,       setTutor2DniOk]       = useState(false);
+  // ── DNI lookup apoderado adicional ───────────────────────────
+  const [tutor2Dni,          setTutor2Dni]          = useState("");
+  const [tutor2NombreVal,    setTutor2NombreVal]    = useState("");
+  const [tutor2ApellidoVal,  setTutor2ApellidoVal]  = useState("");
+  const [tutor2DniStatus,    setTutor2DniStatus]    = useState<DniStatus>('idle');
 
   // Date picker state
   const [birthDay, setBirthDay]     = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear]   = useState("");
 
-  // Combined ISO date for hidden input
   const fechaNacimiento =
     birthDay && birthMonth && birthYear
       ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
       : "";
 
-  // Max days for selected month/year
   const maxDays = useMemo(() => {
     if (!birthMonth || !birthYear) return 31;
     return new Date(Number(birthYear), Number(birthMonth), 0).getDate();
   }, [birthMonth, birthYear]);
 
-  // Reset day if it exceeds the new month's max
   useEffect(() => {
     if (birthDay && Number(birthDay) > maxDays) setBirthDay("");
   }, [maxDays, birthDay]);
 
-  // ── Autocomplete helper ───────────────────────────────────────
-  function useDniAutocomplete(
+  // ── RENIEC lookup helper ──────────────────────────────────────
+  function useDniLookup(
     dni: string,
-    setLoading: (v: boolean) => void,
-    setOk: (v: boolean) => void,
-    onResult: (nombre: string, apellido: string) => void
+    enabled: boolean,
+    setStatus: (s: DniStatus) => void,
+    setNombre: (v: string) => void,
+    setApellido: (v: string) => void
   ) {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-      if (!/^\d{8}$/.test(dni)) { setOk(false); return; }
+      if (!enabled || !/^\d{8}$/.test(dni)) { setStatus('idle'); return; }
       let cancelled = false;
-      setLoading(true);
+      setStatus('loading');
+
       fetch(`/api/dni/${dni}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
+        .then(async (r) => {
           if (cancelled) return;
-          if (data?.nombre) { onResult(data.nombre, data.apellido); setOk(true); }
+          if (r.ok) {
+            const data = await r.json();
+            if (!cancelled) {
+              if (data?.nombre) {
+                setNombre(data.nombre);
+                setApellido(data.apellido ?? '');
+                setStatus('found');
+              } else {
+                setStatus('not_found');
+              }
+            }
+          } else if (!cancelled) {
+            setStatus('not_found');
+          }
         })
-        .finally(() => { if (!cancelled) setLoading(false); });
+        .catch(() => { if (!cancelled) setStatus('not_found'); });
+
       return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dni]);
+    }, [dni, enabled]);
   }
 
-  useDniAutocomplete(dniVal,    setDniLoading,    setDniOk,    (n, a) => { setNombreVal(n);   setApellidoVal(a); });
-  useDniAutocomplete(tutorDni,  setTutorDniLoading,  setTutorDniOk,  (n, a) => { setTutorNombreVal(n);   setTutorApellidoVal(a); });
-  useDniAutocomplete(tutor2Dni, setTutor2DniLoading, setTutor2DniOk, (n, a) => { setTutor2NombreVal(n); setTutor2ApellidoVal(a); });
+  useDniLookup(dniVal,    usaDni,       setDniStatus,      setNombreVal,      setApellidoVal);
+  useDniLookup(tutorDni,  usaTutorDni,  setTutorDniStatus,  setTutorNombreVal,  setTutorApellidoVal);
+  useDniLookup(tutor2Dni, usaTutor2Dni, setTutor2DniStatus, setTutor2NombreVal, setTutor2ApellidoVal);
 
   // Initialize / reset state when dialog opens
   useEffect(() => {
@@ -130,21 +159,17 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
     if (!alumno) {
       setTieneApoderado(true);
       setShowApoderado2(false);
-      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniOk(false); setUsaDni(true);
-      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniOk(false); setUsaTutorDni(true);
-      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniOk(false); setUsaTutor2Dni(true);
-      setBirthDay("");
-      setBirthMonth("");
-      setBirthYear("");
+      setDniVal(""); setNombreVal(""); setApellidoVal(""); setDniStatus('idle'); setUsaDni(true);
+      setTutorDni(""); setTutorNombreVal(""); setTutorApellidoVal(""); setTutorDniStatus('idle'); setUsaTutorDni(true);
+      setTutor2Dni(""); setTutor2NombreVal(""); setTutor2ApellidoVal(""); setTutor2DniStatus('idle'); setUsaTutor2Dni(true);
+      setBirthDay(""); setBirthMonth(""); setBirthYear("");
     } else if (alumno.fechaNacimiento) {
       const d = new Date(alumno.fechaNacimiento);
       setBirthDay(String(d.getUTCDate()));
       setBirthMonth(String(d.getUTCMonth() + 1));
       setBirthYear(String(d.getUTCFullYear()));
     } else {
-      setBirthDay("");
-      setBirthMonth("");
-      setBirthYear("");
+      setBirthDay(""); setBirthMonth(""); setBirthYear("");
     }
   }, [open, alumno]);
 
@@ -158,6 +183,11 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
 
   const e = state.errors ?? {};
 
+  // nombre/apellido del alumno son readonly cuando DNI está activo y no falló
+  const alumnoReadOnly = usaDni && dniStatus !== 'not_found' && dniStatus !== 'idle';
+  const tutorReadOnly  = usaTutorDni && tutorDniStatus !== 'not_found' && tutorDniStatus !== 'idle';
+  const tutor2ReadOnly = usaTutor2Dni && tutor2DniStatus !== 'not_found' && tutor2DniStatus !== 'idle';
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -166,10 +196,8 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
         </DialogHeader>
 
         <form action={formAction} className="space-y-5">
-          {/* Hidden input with combined fecha */}
           <input type="hidden" name="fechaNacimiento" value={fechaNacimiento} />
 
-          {/* Error global */}
           {e._ && (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {e._[0]}
@@ -182,7 +210,7 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
               Datos del alumno
             </p>
 
-            {/* DNI — primer campo */}
+            {/* DNI */}
             <div className="space-y-1">
               <Label htmlFor="dni">DNI</Label>
               <div className="flex items-center gap-2">
@@ -191,34 +219,37 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                     id="dni"
                     name="dni"
                     value={dniVal}
-                    onChange={e => { setDniVal(e.target.value); setDniOk(false); }}
+                    onChange={ev => {
+                      setDniVal(ev.target.value);
+                      setDniStatus('idle');
+                      setNombreVal('');
+                      setApellidoVal('');
+                    }}
                     placeholder="12345678"
                     maxLength={8}
                     disabled={!usaDni}
                     className={cn(!usaDni && "opacity-40")}
                   />
-                  {dniLoading && (
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
-                  )}
-                  {dniOk && !dniLoading && (
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
-                  )}
+                  <DniStatusBadge status={usaDni ? dniStatus : 'idle'} />
                 </div>
                 <input
                   type="checkbox"
                   checked={usaDni}
-                  onChange={e => {
-                    setUsaDni(e.target.checked);
-                    if (!e.target.checked) { setDniVal(""); setDniOk(false); }
+                  onChange={ev => {
+                    setUsaDni(ev.target.checked);
+                    if (!ev.target.checked) { setDniVal(""); setDniStatus('idle'); setNombreVal(''); setApellidoVal(''); }
                   }}
                   title="Buscar por DNI"
                   className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
                 />
               </div>
+              {usaDni && dniStatus === 'not_found' && (
+                <p className="text-xs text-amber-600">No encontrado en RENIEC. Ingresa el nombre manualmente.</p>
+              )}
               {e.dni && <p className="text-xs text-destructive">{e.dni[0]}</p>}
             </div>
 
-            {/* Nombre / Apellido — readonly si autocomplete activo */}
+            {/* Nombre / Apellido */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="nombre">Nombre *</Label>
@@ -226,9 +257,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   id="nombre"
                   name="nombre"
                   value={nombreVal}
-                  onChange={e => setNombreVal(e.target.value)}
-                  readOnly={dniOk && usaDni}
-                  className={cn(dniOk && usaDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  onChange={ev => setNombreVal(ev.target.value)}
+                  readOnly={alumnoReadOnly}
+                  className={cn(alumnoReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="Juan"
                 />
                 {e.nombre && <p className="text-xs text-destructive">{e.nombre[0]}</p>}
@@ -239,9 +270,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   id="apellido"
                   name="apellido"
                   value={apellidoVal}
-                  onChange={e => setApellidoVal(e.target.value)}
-                  readOnly={dniOk && usaDni}
-                  className={cn(dniOk && usaDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  onChange={ev => setApellidoVal(ev.target.value)}
+                  readOnly={alumnoReadOnly}
+                  className={cn(alumnoReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="Pérez"
                 />
                 {e.apellido && <p className="text-xs text-destructive">{e.apellido[0]}</p>}
@@ -261,49 +292,28 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
               {e.celular && <p className="text-xs text-destructive">{e.celular[0]}</p>}
             </div>
 
-            {/* Date picker — tres selects */}
+            {/* Fecha de nacimiento */}
             <div className="space-y-1.5">
               <Label>Fecha de nacimiento</Label>
               <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <select
-                    aria-label="Día"
-                    className={SELECT_CLASS}
-                    value={birthDay}
-                    onChange={(e) => setBirthDay(e.target.value)}
-                  >
-                    <option value="">Día</option>
-                    {Array.from({ length: maxDays }, (_, i) => i + 1).map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <select
-                    aria-label="Mes"
-                    className={SELECT_CLASS}
-                    value={birthMonth}
-                    onChange={(e) => setBirthMonth(e.target.value)}
-                  >
-                    <option value="">Mes</option>
-                    {MESES.map((m, i) => (
-                      <option key={i + 1} value={i + 1}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <select
-                    aria-label="Año"
-                    className={SELECT_CLASS}
-                    value={birthYear}
-                    onChange={(e) => setBirthYear(e.target.value)}
-                  >
-                    <option value="">Año</option>
-                    {ANIOS.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
+                <select aria-label="Día" className={SELECT_CLASS} value={birthDay} onChange={ev => setBirthDay(ev.target.value)}>
+                  <option value="">Día</option>
+                  {Array.from({ length: maxDays }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <select aria-label="Mes" className={SELECT_CLASS} value={birthMonth} onChange={ev => setBirthMonth(ev.target.value)}>
+                  <option value="">Mes</option>
+                  {MESES.map((m, i) => (
+                    <option key={i + 1} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <select aria-label="Año" className={SELECT_CLASS} value={birthYear} onChange={ev => setBirthYear(ev.target.value)}>
+                  <option value="">Año</option>
+                  {ANIOS.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </div>
               {e.fechaNacimiento && (
                 <p className="text-xs text-destructive">{e.fechaNacimiento[0]}</p>
@@ -315,19 +325,15 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
           <div className="border-t border-zinc-100 pt-4 space-y-4">
 
             {!alumno && (
-              <label
-                className={cn(
-                  "flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors select-none",
-                  tieneApoderado
-                    ? "border-zinc-900 bg-zinc-50"
-                    : "border-zinc-200 hover:border-zinc-300"
-                )}
-              >
+              <label className={cn(
+                "flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors select-none",
+                tieneApoderado ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+              )}>
                 <input
                   type="checkbox"
                   name="tieneApoderado"
                   checked={tieneApoderado}
-                  onChange={(e) => setTieneApoderado(e.target.checked)}
+                  onChange={ev => setTieneApoderado(ev.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
                 />
                 <div>
@@ -342,44 +348,46 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
               </label>
             )}
 
-            {/* Campos del apoderado */}
             {!alumno && tieneApoderado && (
               <div className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                   Apoderado
                 </p>
 
-                {/* DNI apoderado con checkbox */}
+                {/* DNI apoderado */}
                 <div className="space-y-1">
                   <Label>DNI del apoderado</Label>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
                       <Input
                         value={tutorDni}
-                        onChange={e => { setTutorDni(e.target.value); setTutorDniOk(false); }}
+                        onChange={ev => {
+                          setTutorDni(ev.target.value);
+                          setTutorDniStatus('idle');
+                          setTutorNombreVal('');
+                          setTutorApellidoVal('');
+                        }}
                         placeholder="12345678"
                         maxLength={8}
                         disabled={!usaTutorDni}
                         className={cn(!usaTutorDni && "opacity-40")}
                       />
-                      {tutorDniLoading && (
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
-                      )}
-                      {tutorDniOk && !tutorDniLoading && (
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
-                      )}
+                      <DniStatusBadge status={usaTutorDni ? tutorDniStatus : 'idle'} />
                     </div>
                     <input
                       type="checkbox"
                       checked={usaTutorDni}
-                      onChange={e => {
-                        setUsaTutorDni(e.target.checked);
-                        if (!e.target.checked) { setTutorDni(""); setTutorDniOk(false); }
+                      onChange={ev => {
+                        setUsaTutorDni(ev.target.checked);
+                        if (!ev.target.checked) { setTutorDni(""); setTutorDniStatus('idle'); setTutorNombreVal(''); setTutorApellidoVal(''); }
                       }}
                       title="Buscar por DNI"
                       className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
                     />
                   </div>
+                  {usaTutorDni && tutorDniStatus === 'not_found' && (
+                    <p className="text-xs text-amber-600">No encontrado en RENIEC. Ingresa el nombre manualmente.</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -389,14 +397,12 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                       id="tutorNombre"
                       name="tutorNombre"
                       value={tutorNombreVal}
-                      onChange={e => setTutorNombreVal(e.target.value)}
-                      readOnly={tutorDniOk && usaTutorDni}
-                      className={cn(tutorDniOk && usaTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                      onChange={ev => setTutorNombreVal(ev.target.value)}
+                      readOnly={tutorReadOnly}
+                      className={cn(tutorReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                       placeholder="María"
                     />
-                    {e.tutorNombre && (
-                      <p className="text-xs text-destructive">{e.tutorNombre[0]}</p>
-                    )}
+                    {e.tutorNombre && <p className="text-xs text-destructive">{e.tutorNombre[0]}</p>}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tutorApellido">Apellido *</Label>
@@ -404,14 +410,12 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                       id="tutorApellido"
                       name="tutorApellido"
                       value={tutorApellidoVal}
-                      onChange={e => setTutorApellidoVal(e.target.value)}
-                      readOnly={tutorDniOk && usaTutorDni}
-                      className={cn(tutorDniOk && usaTutorDni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                      onChange={ev => setTutorApellidoVal(ev.target.value)}
+                      readOnly={tutorReadOnly}
+                      className={cn(tutorReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                       placeholder="Pérez"
                     />
-                    {e.tutorApellido && (
-                      <p className="text-xs text-destructive">{e.tutorApellido[0]}</p>
-                    )}
+                    {e.tutorApellido && <p className="text-xs text-destructive">{e.tutorApellido[0]}</p>}
                   </div>
                 </div>
 
@@ -419,33 +423,20 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   <div className="space-y-1">
                     <Label htmlFor="tutorCelular">Celular *</Label>
                     <Input id="tutorCelular" name="tutorCelular" placeholder="987654321" />
-                    {e.tutorCelular && (
-                      <p className="text-xs text-destructive">{e.tutorCelular[0]}</p>
-                    )}
+                    {e.tutorCelular && <p className="text-xs text-destructive">{e.tutorCelular[0]}</p>}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tutorCelularAdicional">Celular adicional</Label>
-                    <Input
-                      id="tutorCelularAdicional"
-                      name="tutorCelularAdicional"
-                      placeholder="987654321"
-                    />
+                    <Input id="tutorCelularAdicional" name="tutorCelularAdicional" placeholder="987654321" />
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="tutorRelacion">Relación *</Label>
-                  <Input
-                    id="tutorRelacion"
-                    name="tutorRelacion"
-                    placeholder="Madre, Padre, Tutor legal..."
-                  />
-                  {e.tutorRelacion && (
-                    <p className="text-xs text-destructive">{e.tutorRelacion[0]}</p>
-                  )}
+                  <Input id="tutorRelacion" name="tutorRelacion" placeholder="Madre, Padre, Tutor legal..." />
+                  {e.tutorRelacion && <p className="text-xs text-destructive">{e.tutorRelacion[0]}</p>}
                 </div>
 
-                {/* Botón para agregar apoderado adicional */}
                 {!showApoderado2 && (
                   <button
                     type="button"
@@ -460,7 +451,6 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                   </button>
                 )}
 
-                {/* Sección apoderado adicional */}
                 {showApoderado2 && (
                   <div ref={apoderado2Ref} className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3.5">
                     <input type="hidden" name="tieneApoderado2" value="on" />
@@ -478,37 +468,40 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                       </button>
                     </div>
 
-                    {/* DNI apoderado2 con checkbox */}
+                    {/* DNI apoderado2 */}
                     <div className="space-y-1">
                       <Label>DNI del apoderado</Label>
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <Input
                             value={tutor2Dni}
-                            onChange={e => { setTutor2Dni(e.target.value); setTutor2DniOk(false); }}
+                            onChange={ev => {
+                              setTutor2Dni(ev.target.value);
+                              setTutor2DniStatus('idle');
+                              setTutor2NombreVal('');
+                              setTutor2ApellidoVal('');
+                            }}
                             placeholder="12345678"
                             maxLength={8}
                             disabled={!usaTutor2Dni}
                             className={cn(!usaTutor2Dni && "opacity-40")}
                           />
-                          {tutor2DniLoading && (
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 animate-pulse">buscando...</span>
-                          )}
-                          {tutor2DniOk && !tutor2DniLoading && (
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-emerald-500 font-semibold">✓ RENIEC</span>
-                          )}
+                          <DniStatusBadge status={usaTutor2Dni ? tutor2DniStatus : 'idle'} />
                         </div>
                         <input
                           type="checkbox"
                           checked={usaTutor2Dni}
-                          onChange={e => {
-                            setUsaTutor2Dni(e.target.checked);
-                            if (!e.target.checked) { setTutor2Dni(""); setTutor2DniOk(false); }
+                          onChange={ev => {
+                            setUsaTutor2Dni(ev.target.checked);
+                            if (!ev.target.checked) { setTutor2Dni(""); setTutor2DniStatus('idle'); setTutor2NombreVal(''); setTutor2ApellidoVal(''); }
                           }}
                           title="Buscar por DNI"
                           className="h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0 cursor-pointer"
                         />
                       </div>
+                      {usaTutor2Dni && tutor2DniStatus === 'not_found' && (
+                        <p className="text-xs text-amber-600">No encontrado en RENIEC. Ingresa el nombre manualmente.</p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -518,9 +511,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                           id="tutor2Nombre"
                           name="tutor2Nombre"
                           value={tutor2NombreVal}
-                          onChange={e => setTutor2NombreVal(e.target.value)}
-                          readOnly={tutor2DniOk && usaTutor2Dni}
-                          className={cn(tutor2DniOk && usaTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                          onChange={ev => setTutor2NombreVal(ev.target.value)}
+                          readOnly={tutor2ReadOnly}
+                          className={cn(tutor2ReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                           placeholder="Carlos"
                         />
                         {e.tutor2Nombre && <p className="text-xs text-destructive">{e.tutor2Nombre[0]}</p>}
@@ -531,9 +524,9 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
                           id="tutor2Apellido"
                           name="tutor2Apellido"
                           value={tutor2ApellidoVal}
-                          onChange={e => setTutor2ApellidoVal(e.target.value)}
-                          readOnly={tutor2DniOk && usaTutor2Dni}
-                          className={cn(tutor2DniOk && usaTutor2Dni && "bg-zinc-50 text-zinc-600 cursor-default")}
+                          onChange={ev => setTutor2ApellidoVal(ev.target.value)}
+                          readOnly={tutor2ReadOnly}
+                          className={cn(tutor2ReadOnly && "bg-zinc-50 text-zinc-600 cursor-default")}
                           placeholder="Pérez"
                         />
                         {e.tutor2Apellido && <p className="text-xs text-destructive">{e.tutor2Apellido[0]}</p>}
@@ -562,7 +555,6 @@ export function AlumnoDialog({ open, onClose, alumno }: Props) {
               </div>
             )}
 
-            {/* Al editar: tutor en modo solo lectura */}
             {alumno && alumno.tutor && (
               <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-4 py-3 space-y-0.5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1">
