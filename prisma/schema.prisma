@@ -16,9 +16,12 @@ model Usuario {
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 
-  docente     Docente?
-  asistencias Asistencia[]
-  abonos      Abono[]
+  docente          Docente?
+  asistencias      Asistencia[]
+  abonos           Abono[]
+  snackCompras     SnackCompra[]
+  snackVentas      SnackVenta[]
+  snackCajaDiaria  SnackCajaDiaria[]
 
   @@map("usuarios")
 }
@@ -262,4 +265,110 @@ model Recuperacion {
   horario    Horario?   @relation(fields: [idHorarioRecuperacion], references: [id])
 
   @@map("recuperaciones")
+}
+
+// ─── Snacks ───────────────────────────────────────────────────────────────────
+
+model SnackProveedor {
+  id        String   @id @default(uuid())
+  nombre    String   @db.VarChar(100)
+  ruc       String?  @unique @db.VarChar(11)
+  contacto  String?  @db.VarChar(100)
+  telefono  String?  @db.VarChar(20)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  compras SnackCompra[]
+
+  @@map("snack_proveedores")
+}
+
+model SnackProducto {
+  id               String    @id @default(uuid())
+  nombre           String    @db.VarChar(100)
+  categoria        String?   @db.VarChar(50)
+  precioVenta      Decimal   @map("precio_venta") @db.Decimal(10, 2)
+  costoReferencial Decimal?  @map("costo_referencial") @db.Decimal(10, 2)
+  stockActual      Int       @default(0) @map("stock_actual")
+  stockMinimo      Int       @default(0) @map("stock_minimo")
+  fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
+  activo           Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  itemsCompra SnackCompraItem[]
+  itemsVenta  SnackVentaItem[]
+
+  @@map("snack_productos")
+}
+
+model SnackCompra {
+  id          String   @id @default(uuid())
+  idProveedor String   @map("id_proveedor")
+  idUsuario   String   @map("id_usuario")
+  fecha       DateTime @default(now()) @db.Date
+  total       Decimal  @db.Decimal(10, 2)
+  observacion String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  proveedor SnackProveedor    @relation(fields: [idProveedor], references: [id])
+  usuario   Usuario           @relation(fields: [idUsuario], references: [id])
+  items     SnackCompraItem[]
+
+  @@map("snack_compras")
+}
+
+model SnackCompraItem {
+  id         String  @id @default(uuid())
+  idCompra   String  @map("id_compra")
+  idProducto String  @map("id_producto")
+  cantidad   Int
+  precioUnit Decimal @map("precio_unit") @db.Decimal(10, 2)
+  subtotal   Decimal @db.Decimal(10, 2)
+
+  compra   SnackCompra   @relation(fields: [idCompra], references: [id], onDelete: Cascade)
+  producto SnackProducto @relation(fields: [idProducto], references: [id])
+
+  @@map("snack_compra_items")
+}
+
+model SnackVenta {
+  id        String   @id @default(uuid())
+  idUsuario String   @map("id_usuario")
+  fecha     DateTime @default(now()) @db.Date
+  total     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario          @relation(fields: [idUsuario], references: [id])
+  items   SnackVentaItem[]
+
+  @@map("snack_ventas")
+}
+
+model SnackVentaItem {
+  id         String  @id @default(uuid())
+  idVenta    String  @map("id_venta")
+  idProducto String  @map("id_producto")
+  cantidad   Int
+  precioUnit Decimal @map("precio_unit") @db.Decimal(10, 2)
+  subtotal   Decimal @db.Decimal(10, 2)
+
+  venta    SnackVenta    @relation(fields: [idVenta], references: [id], onDelete: Cascade)
+  producto SnackProducto @relation(fields: [idProducto], references: [id])
+
+  @@map("snack_venta_items")
+}
+
+model SnackCajaDiaria {
+  id            String   @id @default(uuid())
+  idUsuario     String   @map("id_usuario")
+  fecha         DateTime @unique @db.Date
+  montoApertura Decimal  @map("monto_apertura") @db.Decimal(10, 2)
+  montoCierre   Decimal? @map("monto_cierre") @db.Decimal(10, 2)
+  estado        String   @default("abierta") @db.VarChar(20)
+  observacion   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [idUsuario], references: [id])
+
+  @@map("snack_caja_diaria")
 }
