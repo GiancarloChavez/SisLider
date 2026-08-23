@@ -184,7 +184,12 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                     id="dni"
                     name="dni"
                     value={dniVal}
-                    onChange={(ev) => { setDniVal(ev.target.value); setDniOk(false); }}
+                    onChange={(ev) => {
+                      setDniVal(ev.target.value);
+                      setDniOk(false);
+                      setNombreVal("");
+                      setApellidoVal("");
+                    }}
                     placeholder="12345678"
                     maxLength={8}
                     inputMode="numeric"
@@ -220,8 +225,8 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                   name="nombre"
                   value={nombreVal}
                   onChange={(ev) => setNombreVal(ev.target.value)}
-                  readOnly={dniOk && !docente}
-                  className={cn(dniOk && !docente && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  readOnly={!docente}
+                  className={cn(!docente && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="Carlos"
                 />
                 {e.nombre && <p className="text-xs text-destructive">{e.nombre[0]}</p>}
@@ -233,8 +238,8 @@ export function DocenteDialog({ open, onClose, docente }: Props) {
                   name="apellido"
                   value={apellidoVal}
                   onChange={(ev) => setApellidoVal(ev.target.value)}
-                  readOnly={dniOk && !docente}
-                  className={cn(dniOk && !docente && "bg-zinc-50 text-zinc-600 cursor-default")}
+                  readOnly={!docente}
+                  className={cn(!docente && "bg-zinc-50 text-zinc-600 cursor-default")}
                   placeholder="García"
                 />
                 {e.apellido && <p className="text-xs text-destructive">{e.apellido[0]}</p>}
