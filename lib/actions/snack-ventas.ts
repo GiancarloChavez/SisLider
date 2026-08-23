@@ -49,15 +49,15 @@ export async function getVentasDelDia(fecha: string): Promise<{ total: number; c
   const end = new Date(fecha);
   end.setDate(end.getDate() + 1);
 
-  const [agg] = await prisma.snackVenta.aggregate({
+  const agg = await prisma.snackVenta.aggregate({
     where: { fecha: { gte: start, lt: end } },
     _sum: { total: true },
     _count: { _all: true },
-  }) as any[];
+  });
 
   return {
-    total: Number((agg as any)?._sum?.total ?? 0),
-    count: (agg as any)?._count?._all ?? 0,
+    total: Number(agg._sum?.total ?? 0),
+    count: agg._count._all ?? 0,
   };
 }
 
