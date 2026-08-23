@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   ClipboardList, CalendarDays, UserCheck, Users,
@@ -16,8 +15,7 @@ import { getHorariosCalendario, getCursosConHorarios } from "@/lib/actions/clase
 
 const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
-const getDashboardData = unstable_cache(
-  async () => {
+async function getDashboardData() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const sixMonthsAgo = new Date(now);
@@ -123,10 +121,7 @@ const getDashboardData = unstable_cache(
       matriculasPorCurso,
       mesesPendientes: pendientesSerializados,
     };
-  },
-  ["dashboard"],
-  { tags: ["dashboard", "matriculas", "pagos", "alumnos"], revalidate: 60 },
-);
+}
 
 export const dynamic = "force-dynamic";
 

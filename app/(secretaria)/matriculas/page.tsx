@@ -1,49 +1,38 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCursosConMatriculas } from "@/lib/actions/matriculas";
 import { MatriculasTable } from "./MatriculasTable";
 import { AlumnosTable } from "../alumnos/AlumnosTable";
 import type { AlumnoSerialized } from "@/lib/actions/alumnos";
 
-const getCursos = unstable_cache(
-  getCursosConMatriculas,
-  ["cursos-matriculas"],
-  { tags: ["matriculas", "cursos"] }
-);
-
-const getAlumnos = unstable_cache(
-  async (): Promise<AlumnoSerialized[]> => {
-    const raw = await prisma.alumno.findMany({
-      orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
-      include: {
-        tutorAlumnos: {
-          where: { esPrincipal: true },
-          include: { tutor: true },
-          take: 1,
-        },
+async function getAlumnos(): Promise<AlumnoSerialized[]> {
+  const raw = await prisma.alumno.findMany({
+    orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
+    include: {
+      tutorAlumnos: {
+        where: { esPrincipal: true },
+        include: { tutor: true },
+        take: 1,
       },
-    });
-    return raw.map((a) => {
-      const t = a.tutorAlumnos[0];
-      return {
-        id: a.id,
-        nombre: a.nombre,
-        apellido: a.apellido,
-        dni: a.dni,
-        celular: a.celular,
-        fechaNacimiento: a.fechaNacimiento?.toISOString() ?? null,
-        habilitado: a.habilitado,
-        createdAt: a.createdAt.toISOString(),
-        tutor: t
-          ? { nombre: t.tutor.nombre, apellido: t.tutor.apellido, celular: t.tutor.celular, relacion: t.tutor.relacion }
-          : null,
-      };
-    });
-  },
-  ["alumnos-list"],
-  { tags: ["alumnos"] }
-);
+    },
+  });
+  return raw.map((a) => {
+    const t = a.tutorAlumnos[0];
+    return {
+      id: a.id,
+      nombre: a.nombre,
+      apellido: a.apellido,
+      dni: a.dni,
+      celular: a.celular,
+      fechaNacimiento: a.fechaNacimiento?.toISOString() ?? null,
+      habilitado: a.habilitado,
+      createdAt: a.createdAt.toISOString(),
+      tutor: t
+        ? { nombre: t.tutor.nombre, apellido: t.tutor.apellido, celular: t.tutor.celular, relacion: t.tutor.relacion }
+        : null,
+    };
+  });
+}
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +49,7 @@ export default async function MatriculasPage({
   const params = await searchParams;
   const activeTab: Tab = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : "matriculas";
 
-  const [cursos, alumnos] = await Promise.all([getCursos(), getAlumnos()]);
+  const [cursos, alumnos] = await Promise.all([getCursosConMatriculas(), getAlumnos()]);
 
   return (
     <div className="space-y-6">
