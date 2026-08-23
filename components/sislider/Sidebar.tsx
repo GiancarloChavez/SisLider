@@ -20,11 +20,7 @@ import {
   School,
   FileBarChart,
   RefreshCcw,
-  ShoppingBag,
   Store,
-  Truck,
-  Package,
-  Receipt,
 } from "lucide-react";
 
 const navGroups = [
@@ -51,11 +47,7 @@ const navGroups = [
   {
     label: "Snacks",
     items: [
-      { href: "/snacks", label: "Caja diaria", icon: Store },
-      { href: "/snacks/ventas", label: "Ventas", icon: Receipt },
-      { href: "/snacks/compras", label: "Compras", icon: ShoppingBag },
-      { href: "/snacks/almacen", label: "Almacén", icon: Package },
-      { href: "/snacks/proveedores", label: "Proveedores", icon: Truck },
+      { href: "/snacks", label: "Snacks", icon: Store },
     ],
   },
 ];
