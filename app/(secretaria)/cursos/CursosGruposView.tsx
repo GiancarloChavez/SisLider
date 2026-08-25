@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ChevronRight, ChevronDown, Plus, ChevronsDownUp, ChevronsUpDown,
-  Pencil, PowerOff, Power, Search, GraduationCap, CalendarDays, Users,
+  Pencil, PowerOff, Power, Search, GraduationCap, CalendarDays, Users, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toggleCursoActivo, type CursoSerialized } from "@/lib/actions/cursos";
 import { toggleHorarioActivo, type HorarioSerialized, type HorarioSelectData } from "@/lib/actions/horarios";
 import { CursoDialog } from "./CursoDialog";
 import { HorarioDialog } from "../horarios/HorarioDialog";
+import { HorarioDetailModal } from "../horarios/HorarioDetailModal";
 
 type Props = {
   cursos: CursoSerialized[];
@@ -57,6 +58,9 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
   const [grupoDialogOpen, setGrupoDialogOpen] = useState(false);
   const [selectedHorario, setSelectedHorario] = useState<HorarioSerialized | null>(null);
   const [grupoDialogKey, setGrupoDialogKey] = useState(0);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailHorario, setDetailHorario] = useState<HorarioSerialized | null>(null);
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -126,6 +130,11 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
     setSelectedHorario(horario);
     setGrupoDialogKey(k => k + 1);
     setGrupoDialogOpen(true);
+  }
+
+  function openDetail(horario: HorarioSerialized) {
+    setDetailHorario(horario);
+    setDetailOpen(true);
   }
 
   async function handleToggleCurso(curso: CursoSerialized) {
@@ -289,7 +298,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-20 shrink-0">Horario</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-20 shrink-0">Precio/mes</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-16 shrink-0">Estado</span>
-                            <span className="w-16 shrink-0" />
+                            <span className="w-24 shrink-0" />
                           </div>
 
                           {grupos.map(h => (
@@ -339,7 +348,15 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                                 <StatusPill active={h.activo} />
                               </div>
 
-                              <div className="flex gap-1 w-16 shrink-0 justify-end">
+                              <div className="flex gap-1 w-24 shrink-0 justify-end">
+                                <Button
+                                  size="icon-sm" variant="ghost"
+                                  onClick={() => openDetail(h)}
+                                  title="Ver detalles del grupo"
+                                  className="text-zinc-400 hover:text-blue-600 hover:bg-blue-50"
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                </Button>
                                 <Button
                                   size="icon-sm" variant="ghost"
                                   onClick={() => openEditGrupo(h)}
@@ -384,6 +401,11 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
         onClose={() => setGrupoDialogOpen(false)}
         horario={selectedHorario}
         selectData={selectData}
+      />
+      <HorarioDetailModal
+        open={detailOpen}
+        onClose={() => { setDetailOpen(false); setDetailHorario(null); }}
+        horario={detailHorario}
       />
     </>
   );

@@ -115,6 +115,7 @@ model Horario {
   idAula        String   @map("id_aula")
   numeroGrupo   String    @map("numero_grupo") @db.VarChar(50)
   precioMensual Decimal   @map("precio_mensual") @db.Decimal(10, 2)
+  cantidadMeses Int?      @map("cantidad_meses")
   fechaInicio   DateTime? @map("fecha_inicio") @db.Date
   fechaFin      DateTime? @map("fecha_fin") @db.Date
   horaInicio    DateTime  @map("hora_inicio") @db.Time
@@ -122,15 +123,30 @@ model Horario {
   activo        Boolean   @default(true)
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  curso          Curso          @relation(fields: [idCurso], references: [id])
-  docente        Docente        @relation(fields: [idDocente], references: [id])
-  aula           Aula           @relation(fields: [idAula], references: [id])
+  curso          Curso            @relation(fields: [idCurso], references: [id])
+  docente        Docente          @relation(fields: [idDocente], references: [id])
+  aula           Aula             @relation(fields: [idAula], references: [id])
   dias           HorarioDia[]
+  periodos       HorarioPeriodo[]
   matriculas     Matricula[]
   recuperaciones Recuperacion[]
 
   @@unique([idCurso, numeroGrupo])
   @@map("horarios")
+}
+
+model HorarioPeriodo {
+  id            String   @id @default(uuid())
+  idHorario     String   @map("id_horario")
+  numeroPeriodo Int      @map("numero_periodo")
+  fechaInicio   DateTime @map("fecha_inicio") @db.Date
+  fechaFin      DateTime @map("fecha_fin") @db.Date
+
+  horario  Horario   @relation(fields: [idHorario], references: [id], onDelete: Cascade)
+  mesPagos MesPago[]
+
+  @@unique([idHorario, numeroPeriodo])
+  @@map("horario_periodos")
 }
 
 model HorarioDia {
@@ -204,6 +220,7 @@ model MatriculaDia {
 model MesPago {
   id               String    @id @default(uuid())
   idMatricula      String    @map("id_matricula")
+  idPeriodo        String?   @map("id_periodo")
   anio             Int
   mes              Int
   montoTotal       Decimal   @map("monto_total") @db.Decimal(10, 2)
@@ -212,7 +229,8 @@ model MesPago {
   fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
   createdAt        DateTime  @default(now()) @map("created_at")
 
-  matricula Matricula @relation(fields: [idMatricula], references: [id])
+  matricula Matricula       @relation(fields: [idMatricula], references: [id])
+  periodo   HorarioPeriodo? @relation(fields: [idPeriodo], references: [id])
   abonos    Abono[]
 
   @@unique([idMatricula, anio, mes])

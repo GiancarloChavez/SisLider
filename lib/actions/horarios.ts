@@ -4,6 +4,13 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
+export type PeriodoSerialized = {
+  id?: string;
+  numeroPeriodo: number;
+  fechaInicio: string; // YYYY-MM-DD
+  fechaFin: string;   // YYYY-MM-DD
+};
+
 export type HorarioSerialized = {
   id: string;
   idCurso: string;
@@ -11,6 +18,7 @@ export type HorarioSerialized = {
   idAula: string;
   numeroGrupo: string;
   precioMensual: number;
+  cantidadMeses: number | null;
   fechaInicio?: string;
   fechaFin?: string;
   horaInicio: string;
@@ -21,6 +29,7 @@ export type HorarioSerialized = {
   docente: { nombre: string; apellido: string };
   aula: { nombre: string; capacidad: number };
   dias: string[];
+  periodos: PeriodoSerialized[];
 };
 
 export type SelectOption = { id: string; label: string };
@@ -85,6 +94,24 @@ function parseTime(time: string) {
   return new Date(`1970-01-01T${time}:00.000Z`);
 }
 
+/** Parsea los períodos enviados en el FormData. */
+function parsePeriodos(formData: FormData) {
+  const num = parseInt(formData.get("numPeriodos") as string, 10) || 0;
+  const result: { numeroPeriodo: number; fechaInicio: Date; fechaFin: Date }[] = [];
+  for (let i = 1; i <= num; i++) {
+    const ini = formData.get(`periodo_${i}_inicio`) as string;
+    const fin = formData.get(`periodo_${i}_fin`) as string;
+    if (ini && fin) {
+      result.push({
+        numeroPeriodo: i,
+        fechaInicio: new Date(ini + "T00:00:00"),
+        fechaFin: new Date(fin + "T00:00:00"),
+      });
+    }
+  }
+  return result;
+}
+
 export async function createHorario(
   _prev: HorarioFormState,
   formData: FormData
@@ -103,10 +130,9 @@ export async function createHorario(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Resolver número de grupo (único por curso)
+  // Número de grupo
   const autoNumero = formData.get("autoNumero") === "true";
   let numeroGrupo: string;
-
   if (autoNumero) {
     numeroGrupo = String(await getNextNumeroGrupo(parsed.data.idCurso));
   } else {
@@ -116,22 +142,39 @@ export async function createHorario(
     numeroGrupo = String(num.data);
   }
 
-  const { dias, horaInicio, horaFin, fechaInicio, fechaFin, ...rest } = parsed.data;
+  const cantidadMeses = parseInt(formData.get("cantidadMeses") as string, 10) || null;
+  const periodos = parsePeriodos(formData);
+
+  const { dias, horaInicio, horaFin, fechaInicio } = parsed.data;
+
+  // fechaFin = último período o null
+  const fechaFin =
+    periodos.length > 0
+      ? periodos[periodos.length - 1].fechaFin
+      : null;
+
   try {
     await prisma.horario.create({
       data: {
-        ...rest,
+        idCurso: parsed.data.idCurso,
+        idDocente: parsed.data.idDocente,
+        idAula: parsed.data.idAula,
+        precioMensual: parsed.data.precioMensual,
         numeroGrupo,
+        cantidadMeses,
         horaInicio: parseTime(horaInicio),
         horaFin: parseTime(horaFin),
-        fechaInicio: fechaInicio ? new Date(fechaInicio) : null,
-        fechaFin: fechaFin ? new Date(fechaFin) : null,
+        fechaInicio: fechaInicio ? new Date(fechaInicio + "T00:00:00") : null,
+        fechaFin,
         dias: { create: dias.map((dia) => ({ dia })) },
+        periodos: periodos.length > 0
+          ? { create: periodos.map((p) => ({ numeroPeriodo: p.numeroPeriodo, fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })) }
+          : undefined,
       },
     });
   } catch (e: unknown) {
     if ((e as { code?: string }).code === "P2002") {
-      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe en este curso. Elige otro número.`] } };
+      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe en este curso.`] } };
     }
     throw e;
   }
@@ -158,36 +201,54 @@ export async function updateHorario(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Número de grupo para edición (siempre manual, único por curso)
   const raw = formData.get("numeroGrupo");
   const num = z.coerce.number().int().positive("Debe ser un número entero positivo").safeParse(raw);
   if (!num.success) return { errors: { numeroGrupo: num.error.issues.map((e) => e.message) } };
   const numeroGrupo = String(num.data);
 
-  const { dias, horaInicio, horaFin, fechaInicio, fechaFin, ...rest } = parsed.data;
+  const cantidadMeses = parseInt(formData.get("cantidadMeses") as string, 10) || null;
+  const periodos = parsePeriodos(formData);
+
+  const { dias, horaInicio, horaFin, fechaInicio } = parsed.data;
+
+  const fechaFin =
+    periodos.length > 0
+      ? periodos[periodos.length - 1].fechaFin
+      : null;
+
   try {
-    await prisma.horario.update({
-      where: { id },
-      data: {
-        ...rest,
-        numeroGrupo,
-        horaInicio: parseTime(horaInicio),
-        horaFin: parseTime(horaFin),
-        fechaInicio: fechaInicio ? new Date(fechaInicio) : null,
-        fechaFin: fechaFin ? new Date(fechaFin) : null,
-        dias: { deleteMany: {}, create: dias.map((dia) => ({ dia })) },
-      },
-    });
+    await prisma.$transaction([
+      // Recrear períodos
+      prisma.horarioPeriodo.deleteMany({ where: { idHorario: id } }),
+      prisma.horario.update({
+        where: { id },
+        data: {
+          idCurso: parsed.data.idCurso,
+          idDocente: parsed.data.idDocente,
+          idAula: parsed.data.idAula,
+          precioMensual: parsed.data.precioMensual,
+          numeroGrupo,
+          cantidadMeses,
+          horaInicio: parseTime(horaInicio),
+          horaFin: parseTime(horaFin),
+          fechaInicio: fechaInicio ? new Date(fechaInicio + "T00:00:00") : null,
+          fechaFin,
+          dias: { deleteMany: {}, create: dias.map((dia) => ({ dia })) },
+          periodos: periodos.length > 0
+            ? { create: periodos.map((p) => ({ numeroPeriodo: p.numeroPeriodo, fechaInicio: p.fechaInicio, fechaFin: p.fechaFin })) }
+            : undefined,
+        },
+      }),
+    ]);
   } catch (e: unknown) {
     if ((e as { code?: string }).code === "P2002") {
-      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe en este curso. Elige otro número.`] } };
+      return { errors: { numeroGrupo: [`El grupo ${numeroGrupo} ya existe en este curso.`] } };
     }
     throw e;
   }
   revalidateTag("horarios");
   return { message: "ok" };
 }
-
 
 export async function toggleHorarioActivo(id: string, activo: boolean) {
   await prisma.horario.update({ where: { id }, data: { activo: !activo } });
