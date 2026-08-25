@@ -7,10 +7,16 @@ import { Input } from "@/components/ui/input";
 import {
   ChevronRight, ChevronDown, Plus, ChevronsDownUp, ChevronsUpDown,
   Pencil, PowerOff, Power, Search, GraduationCap, CalendarDays, Users, Info,
+  Trash2, AlertTriangle, Lock,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toggleCursoActivo, type CursoSerialized } from "@/lib/actions/cursos";
-import { toggleHorarioActivo, type HorarioSerialized, type HorarioSelectData } from "@/lib/actions/horarios";
+import { toggleHorarioActivo, deleteHorario, type HorarioSerialized, type HorarioSelectData } from "@/lib/actions/horarios";
 import { CursoDialog } from "./CursoDialog";
 import { HorarioDialog } from "../horarios/HorarioDialog";
 import { HorarioDetailModal } from "../horarios/HorarioDetailModal";
@@ -61,6 +67,10 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailHorario, setDetailHorario] = useState<HorarioSerialized | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<HorarioSerialized | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -145,6 +155,25 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
   async function handleToggleHorario(horario: HorarioSerialized) {
     await toggleHorarioActivo(horario.id, horario.activo);
     toast.success(horario.activo ? "Grupo desactivado" : "Grupo activado");
+  }
+
+  function openDeleteGrupo(horario: HorarioSerialized) {
+    setDeleteTarget(horario);
+    setDeleteOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const result = await deleteHorario(deleteTarget.id);
+    setDeleting(false);
+    if ("blocked" in result) {
+      toast.error(`No se puede eliminar: tiene ${result.cantidadMatriculados} alumno(s) matriculado(s)`);
+    } else {
+      toast.success("Grupo eliminado correctamente");
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    }
   }
 
   const activosCursos = cursos.filter(c => c.activo).length;
@@ -298,7 +327,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-20 shrink-0">Horario</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-20 shrink-0">Precio/mes</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-16 shrink-0">Estado</span>
-                            <span className="w-24 shrink-0" />
+                            <span className="w-28 shrink-0" />
                           </div>
 
                           {grupos.map(h => (
@@ -348,7 +377,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                                 <StatusPill active={h.activo} />
                               </div>
 
-                              <div className="flex gap-1 w-24 shrink-0 justify-end">
+                              <div className="flex gap-1 w-28 shrink-0 justify-end">
                                 <Button
                                   size="icon-sm" variant="ghost"
                                   onClick={() => openDetail(h)}
@@ -374,6 +403,14 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                                   }
                                 >
                                   {h.activo ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                                </Button>
+                                <Button
+                                  size="icon-sm" variant="ghost"
+                                  onClick={() => openDeleteGrupo(h)}
+                                  title="Eliminar grupo"
+                                  className="text-zinc-300 hover:text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
                             </div>
@@ -407,6 +444,103 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
         onClose={() => { setDetailOpen(false); setDetailHorario(null); }}
         horario={detailHorario}
       />
+
+      {/* Delete group dialog */}
+      <Dialog open={deleteOpen} onOpenChange={(v) => { if (!v && !deleting) { setDeleteOpen(false); setDeleteTarget(null); } }}>
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
+          {deleteTarget && (() => {
+            const bloqueado = deleteTarget.cantidadMatriculados > 0;
+            const n = deleteTarget.cantidadMatriculados;
+            return (
+              <>
+                {/* Header */}
+                <div className={cn(
+                  "flex items-center gap-3 px-5 py-4 border-b",
+                  bloqueado ? "border-amber-100 bg-amber-50" : "border-red-100 bg-red-50"
+                )}>
+                  <div className={cn(
+                    "rounded-full p-2 shrink-0",
+                    bloqueado ? "bg-amber-100" : "bg-red-100"
+                  )}>
+                    {bloqueado
+                      ? <Lock className="h-4 w-4 text-amber-600" />
+                      : <AlertTriangle className="h-4 w-4 text-red-600" />
+                    }
+                  </div>
+                  <DialogTitle className={cn(
+                    "text-sm font-semibold",
+                    bloqueado ? "text-amber-900" : "text-red-900"
+                  )}>
+                    {bloqueado ? "No se puede eliminar el grupo" : "Eliminar grupo"}
+                  </DialogTitle>
+                </div>
+
+                {/* Body */}
+                <div className="px-5 py-4 space-y-4">
+                  {/* Group summary */}
+                  <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 space-y-1">
+                    <p className="text-sm font-semibold text-zinc-800">
+                      Grupo {deleteTarget.numeroGrupo} — {deleteTarget.curso.nombre}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {deleteTarget.docente.apellido}, {deleteTarget.docente.nombre}
+                      {" · "}
+                      {deleteTarget.horaInicio}–{deleteTarget.horaFin}
+                      {" · "}
+                      {deleteTarget.dias.join(", ")}
+                    </p>
+                  </div>
+
+                  {bloqueado ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-zinc-700">
+                        Este grupo tiene{" "}
+                        <span className="font-semibold text-amber-700">
+                          {n} alumno{n !== 1 ? "s" : ""} matriculado{n !== 1 ? "s" : ""}
+                        </span>.
+                      </p>
+                      <p className="text-sm text-zinc-600">
+                        Para poder eliminar el grupo debes desmatricular a todos sus alumnos primero. Mientras haya alumnos asociados, el grupo no puede ser eliminado.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-zinc-700">
+                        ¿Estás seguro de que deseas eliminar este grupo? Esta acción es{" "}
+                        <span className="font-semibold text-red-600">permanente e irreversible</span>.
+                      </p>
+                      <p className="text-sm text-zinc-500">
+                        Se eliminarán también todos sus períodos y la configuración de días.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-2 px-5 py-3 border-t border-zinc-100 bg-white">
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => { setDeleteOpen(false); setDeleteTarget(null); }}
+                    disabled={deleting}
+                  >
+                    {bloqueado ? "Entendido" : "Cancelar"}
+                  </Button>
+                  {!bloqueado && (
+                    <Button
+                      size="sm"
+                      onClick={handleConfirmDelete}
+                      disabled={deleting}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      {deleting ? "Eliminando..." : "Eliminar grupo"}
+                    </Button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

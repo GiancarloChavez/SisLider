@@ -30,6 +30,7 @@ export type HorarioSerialized = {
   aula: { nombre: string; capacidad: number };
   dias: string[];
   periodos: PeriodoSerialized[];
+  cantidadMatriculados: number;
 };
 
 export type SelectOption = { id: string; label: string };
@@ -253,4 +254,17 @@ export async function updateHorario(
 export async function toggleHorarioActivo(id: string, activo: boolean) {
   await prisma.horario.update({ where: { id }, data: { activo: !activo } });
   revalidateTag("horarios");
+}
+
+export async function deleteHorario(
+  id: string
+): Promise<{ blocked: true; cantidadMatriculados: number } | { deleted: true }> {
+  const count = await prisma.matricula.count({ where: { idHorario: id } });
+  if (count > 0) return { blocked: true, cantidadMatriculados: count };
+  await prisma.$transaction([
+    prisma.horarioDia.deleteMany({ where: { idHorario: id } }),
+    prisma.horario.delete({ where: { id } }),
+  ]);
+  revalidateTag("horarios");
+  return { deleted: true };
 }

@@ -23,6 +23,7 @@ async function getHorarios(): Promise<HorarioSerialized[]> {
       aula: true,
       dias: true,
       periodos: { orderBy: { numeroPeriodo: "asc" } },
+      _count: { select: { matriculas: true } },
     },
     orderBy: [{ activo: "desc" }, { createdAt: "asc" }],
   });
@@ -50,6 +51,7 @@ async function getHorarios(): Promise<HorarioSerialized[]> {
       fechaInicio: p.fechaInicio.toISOString().slice(0, 10),
       fechaFin: p.fechaFin.toISOString().slice(0, 10),
     })),
+    cantidadMatriculados: h._count.matriculas,
   }));
 }
 

@@ -84,7 +84,7 @@ function TimeField({ label, name, parts, onChange, fmt, error }: {
           <div className="flex rounded-md overflow-hidden border border-input h-9">
             {(["AM","PM"] as const).map((ap) => (
               <button key={ap} type="button" onClick={() => onChange({ ...parts, ampm: ap })}
-                className={`w-10 text-xs font-semibold transition-colors ${parts.ampm === ap ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-50"}`}>
+                className={`w-14 text-xs font-semibold transition-colors ${parts.ampm === ap ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-50"}`}>
                 {ap}
               </button>
             ))}
@@ -574,17 +574,17 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
               {/* Días */}
               <div className="space-y-2">
                 <Label>Días de clase *</Label>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   {DIAS.map(dia => {
                     const active = diasSeleccionados.includes(dia);
                     return (
                       <label key={dia} className={cn(
-                        "flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium cursor-pointer select-none transition-colors",
+                        "flex items-center justify-center rounded-md border px-2.5 py-1 text-[11px] font-medium cursor-pointer select-none transition-colors whitespace-nowrap",
                         active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
                       )}>
                         <input type="checkbox" name="dia" value={dia} checked={active}
                           onChange={() => toggleDia(dia)} className="sr-only" />
-                        {DIA_LABEL[dia] ?? dia}
+                        {dia}
                       </label>
                     );
                   })}
