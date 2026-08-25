@@ -150,11 +150,16 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                   <TableRow key={alumno.id} className="transition-colors duration-100 hover:bg-zinc-50/70">
                     <TableCell>
                       <p className="font-medium text-zinc-900">{alumno.apellido}, {alumno.nombre}</p>
-                      {alumno.celular && (
-                        <div className="flex items-center gap-1 mt-0.5">
+                      {/* Número propio: icono sutil si tiene apoderado (es contacto secundario) */}
+                      {alumno.celular && alumno.tutor && (
+                        <div className="flex items-center gap-0.5 mt-0.5">
                           <p className="text-xs font-mono text-zinc-400">{alumno.celular}</p>
-                          <WhatsAppButton phone={alumno.celular} />
+                          <WhatsAppButton phone={alumno.celular} variant="icon" />
                         </div>
+                      )}
+                      {/* Si es autónomo, solo muestra el número como texto (el botón va en acciones) */}
+                      {alumno.celular && !alumno.tutor && (
+                        <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.celular}</p>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
@@ -176,18 +181,12 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                             {alumno.tutor.apellido}, {alumno.tutor.nombre}
                             <span className="ml-1 text-xs text-zinc-400">({alumno.tutor.relacion})</span>
                           </p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <p className="text-xs font-mono text-zinc-400">{alumno.tutor.celular}</p>
-                            <WhatsAppButton phone={alumno.tutor.celular} />
-                          </div>
+                          <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.tutor.celular}</p>
                         </div>
                       ) : alumno.celular ? (
                         <div>
                           <span className="text-xs text-zinc-400 italic">Autónomo</span>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <p className="text-xs font-mono text-zinc-400">{alumno.celular}</p>
-                            <WhatsAppButton phone={alumno.celular} />
-                          </div>
+                          <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.celular}</p>
                         </div>
                       ) : (
                         <span className="text-xs text-zinc-400 italic">Autónomo</span>
@@ -197,7 +196,13 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                       <HabilitadoPill habilitado={alumno.habilitado} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end items-center gap-1">
+                        {/* Botón principal WhatsApp: apoderado si existe, o autónomo con celular */}
+                        {alumno.tutor ? (
+                          <WhatsAppButton phone={alumno.tutor.celular} variant="button" />
+                        ) : alumno.celular ? (
+                          <WhatsAppButton phone={alumno.celular} variant="button" />
+                        ) : null}
                         <Button size="icon-sm" variant="ghost" onClick={() => openEdit(alumno)} title="Editar">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>

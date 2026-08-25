@@ -149,19 +149,15 @@ export function DocentesTable({ docentes }: Props) {
                   <TableCell className="font-mono text-sm text-zinc-500">
                     {d.dni ?? <span className="text-zinc-300 font-sans">—</span>}
                   </TableCell>
-                  <TableCell>
-                    {d.celular ? (
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-sm text-zinc-500">{d.celular}</span>
-                        <WhatsAppButton phone={d.celular} />
-                      </div>
-                    ) : (
-                      <span className="text-zinc-300">—</span>
-                    )}
+                  <TableCell className="font-mono text-sm text-zinc-500">
+                    {d.celular ?? <span className="text-zinc-300 font-sans">—</span>}
                   </TableCell>
                   <TableCell><StatusPill active={d.activo} /></TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex justify-end items-center gap-1">
+                      {d.celular && (
+                        <WhatsAppButton phone={d.celular} variant="button" />
+                      )}
                       <Button size="icon-sm" variant="ghost" onClick={() => openEdit(d)} title="Editar">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
