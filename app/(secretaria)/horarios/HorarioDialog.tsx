@@ -72,12 +72,12 @@ function TimeField({ label, name, parts, onChange, fmt, error }: {
     <div className="space-y-1.5">
       <Label className="text-xs text-zinc-500 uppercase tracking-wide">{label}</Label>
       <input type="hidden" name={name} value={partsToHHmm(parts, fmt)} />
-      <div className="flex items-center gap-1.5">
-        <select value={parts.hour} onChange={(e) => onChange({ ...parts, hour: e.target.value })} className={`${SEL} w-16`}>
+      <div className="flex items-center gap-2">
+        <select value={parts.hour} onChange={(e) => onChange({ ...parts, hour: e.target.value })} className={`${SEL} w-20`}>
           {(fmt === "24" ? HOURS_24 : HOURS_12).map((h) => <option key={h} value={h}>{h}</option>)}
         </select>
         <span className="text-base font-bold text-zinc-400 select-none">:</span>
-        <select value={parts.minute} onChange={(e) => onChange({ ...parts, minute: e.target.value })} className={`${SEL} w-16`}>
+        <select value={parts.minute} onChange={(e) => onChange({ ...parts, minute: e.target.value })} className={`${SEL} w-20`}>
           {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
         {fmt === "12" && (
@@ -98,27 +98,46 @@ function TimeField({ label, name, parts, onChange, fmt, error }: {
 
 // ─── Mini calendar ────────────────────────────────────────────────────────────
 
-const MONTH_NAMES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-const DAY_HDRS    = ["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
+const MONTH_NAMES  = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MESES_NOMBRE = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DIAS_NOMBRE  = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const DAY_HDRS     = ["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
+
+function ymdToTextLong(ymd: string): string {
+  if (!ymd) return "";
+  const [y, m, d] = ymd.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const dayName   = DIAS_NOMBRE[date.getDay()];
+  const monthName = MESES_NOMBRE[m - 1];
+  return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${d} de ${monthName} de ${y}`;
+}
+
+function countClassDays(start: Date, end: Date, freqDays: string[]): number {
+  const freqDows = new Set(freqDays.map(d => DIA_TO_DOW[d]).filter((v): v is number => v !== undefined));
+  let count = 0;
+  const cur = new Date(start);
+  while (cur <= end) {
+    if (freqDows.has(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
 
 type CalColor = {
-  endCircle:   string;
-  startCircle: string;
-  range:       string;
-  dot:         string;
+  range:    string; // soft fill for all period days
+  classDay: string; // prominent circle for class days in period
 };
 
-// All Tailwind classes written as complete strings to avoid purge issues
+// Complete Tailwind class strings to avoid purge issues
 const PERIOD_COLORS: CalColor[] = [
-  { endCircle: "bg-blue-500 text-white",    startCircle: "ring-1 ring-blue-500 text-blue-700 bg-white",    range: "bg-blue-100 text-blue-800",    dot: "bg-blue-400" },
-  { endCircle: "bg-violet-500 text-white",  startCircle: "ring-1 ring-violet-500 text-violet-700 bg-white",  range: "bg-violet-100 text-violet-800",  dot: "bg-violet-400" },
-  { endCircle: "bg-emerald-500 text-white", startCircle: "ring-1 ring-emerald-500 text-emerald-700 bg-white", range: "bg-emerald-100 text-emerald-800", dot: "bg-emerald-400" },
-  { endCircle: "bg-orange-500 text-white",  startCircle: "ring-1 ring-orange-500 text-orange-700 bg-white",  range: "bg-orange-100 text-orange-800",  dot: "bg-orange-400" },
-  { endCircle: "bg-pink-500 text-white",    startCircle: "ring-1 ring-pink-500 text-pink-700 bg-white",    range: "bg-pink-100 text-pink-800",    dot: "bg-pink-400" },
-  { endCircle: "bg-teal-500 text-white",    startCircle: "ring-1 ring-teal-500 text-teal-700 bg-white",    range: "bg-teal-100 text-teal-800",    dot: "bg-teal-400" },
+  { range: "bg-blue-100 text-blue-700",     classDay: "bg-blue-500 text-white" },
+  { range: "bg-violet-100 text-violet-700", classDay: "bg-violet-500 text-white" },
+  { range: "bg-emerald-100 text-emerald-700", classDay: "bg-emerald-500 text-white" },
+  { range: "bg-orange-100 text-orange-700", classDay: "bg-orange-500 text-white" },
+  { range: "bg-pink-100 text-pink-700",     classDay: "bg-pink-500 text-white" },
+  { range: "bg-teal-100 text-teal-700",     classDay: "bg-teal-500 text-white" },
 ];
 
-// Badege colors for period number pill (matches CalColor palette)
 const BADGE_COLORS = [
   "bg-blue-500 text-white",
   "bg-violet-500 text-white",
@@ -138,18 +157,12 @@ function buildCells(year: number, month: number): (number | null)[] {
   return cells;
 }
 
-function sameDay(a: Date, b: Date | null): boolean {
-  if (!b) return false;
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function MiniCalendar({ year, month, pStart, pEnd, hStart, hEnd, freqDays, col }: {
+function MiniCalendar({ year, month, pStart, pEnd, freqDays, col }: {
   year: number; month: number;
   pStart: Date | null; pEnd: Date | null;
-  hStart: Date | null; hEnd: Date | null;
   freqDays: string[]; col: CalColor;
 }) {
-  const cells = buildCells(year, month);
+  const cells    = buildCells(year, month);
   const freqDows = new Set(freqDays.map(d => DIA_TO_DOW[d]).filter(Boolean));
 
   return (
@@ -165,25 +178,19 @@ function MiniCalendar({ year, month, pStart, pEnd, hStart, hEnd, freqDays, col }
         ))}
         {cells.map((day, i) => {
           if (!day) return <div key={i} className="h-7 w-full" />;
-          const date   = new Date(year, month, day);
-          const isHEnd   = sameDay(date, hEnd);
-          const isHStart = sameDay(date, hStart);
-          const inRng    = !!(pStart && pEnd && date >= pStart && date <= pEnd);
-          const isFreq   = freqDows.has(date.getDay());
+          const date    = new Date(year, month, day);
+          const inRng   = !!(pStart && pEnd && date >= pStart && date <= pEnd);
+          const isClass = inRng && freqDows.has(date.getDay());
           return (
-            <div key={i} className="h-7 flex flex-col items-center justify-center gap-0">
+            <div key={i} className="h-7 flex items-center justify-center">
               <span className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium leading-none",
-                isHEnd   ? col.endCircle :
-                isHStart ? col.startCircle :
-                inRng    ? col.range :
+                isClass ? col.classDay :
+                inRng   ? col.range    :
                 "text-zinc-400"
               )}>
                 {day}
               </span>
-              {isFreq && !isHStart && !isHEnd && inRng && (
-                <span className={`w-1 h-1 rounded-full -mt-0.5 ${col.dot}`} />
-              )}
             </div>
           );
         })}
@@ -216,6 +223,8 @@ function PeriodoCard({ periodo, idx, total, freqDays, onUpdate }: {
     startDate.getFullYear() === endDate.getFullYear() &&
     startDate.getMonth()    === endDate.getMonth());
 
+  const classDayCount = startDate && endDate ? countClassDays(startDate, endDate, freqDays) : 0;
+
   return (
     <div className={cn(
       "rounded-xl border p-3 space-y-3 transition-shadow",
@@ -230,6 +239,11 @@ function PeriodoCard({ periodo, idx, total, freqDays, onUpdate }: {
           {idx + 1}
         </span>
         <span className="text-sm font-semibold text-zinc-800">Mes {idx + 1}</span>
+        {startDate && endDate && (
+          <span className="text-[10px] text-zinc-400 font-medium">
+            · {classDayCount} clase{classDayCount !== 1 ? "s" : ""}
+          </span>
+        )}
         {isLast && (
           <span className="ml-auto text-[10px] font-semibold bg-zinc-900 text-white px-1.5 py-0.5 rounded">
             Fin del grupo
@@ -239,57 +253,52 @@ function PeriodoCard({ periodo, idx, total, freqDays, onUpdate }: {
 
       {/* Calendarios */}
       {startDate && endDate ? (
-        <div className={cn("flex justify-center", sameMonth ? "" : "gap-4")}>
-          {sameMonth ? (
-            <MiniCalendar
-              year={startDate.getFullYear()} month={startDate.getMonth()}
-              pStart={startDate} pEnd={endDate}
-              hStart={startDate} hEnd={endDate}
-              freqDays={freqDays} col={col}
-            />
-          ) : (
-            <>
+        <>
+          <div className={cn("flex justify-center", sameMonth ? "" : "gap-4")}>
+            {sameMonth ? (
               <MiniCalendar
                 year={startDate.getFullYear()} month={startDate.getMonth()}
                 pStart={startDate} pEnd={endDate}
-                hStart={startDate} hEnd={null}
                 freqDays={freqDays} col={col}
               />
-              <div className="w-px bg-zinc-100 shrink-0" />
-              <MiniCalendar
-                year={endDate.getFullYear()} month={endDate.getMonth()}
-                pStart={startDate} pEnd={endDate}
-                hStart={null} hEnd={endDate}
-                freqDays={freqDays} col={col}
-              />
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <MiniCalendar
+                  year={startDate.getFullYear()} month={startDate.getMonth()}
+                  pStart={startDate} pEnd={endDate}
+                  freqDays={freqDays} col={col}
+                />
+                <div className="w-px bg-zinc-100 shrink-0" />
+                <MiniCalendar
+                  year={endDate.getFullYear()} month={endDate.getMonth()}
+                  pStart={startDate} pEnd={endDate}
+                  freqDays={freqDays} col={col}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Fechas textuales */}
+          <div className="flex flex-col gap-0.5 text-[10px] text-zinc-500">
+            <span><span className="font-semibold text-zinc-700">Inicio:</span> {ymdToTextLong(periodo.inicio)}</span>
+            <span><span className="font-semibold text-zinc-700">Fin:</span> {ymdToTextLong(periodo.fin)}</span>
+          </div>
+
+          {/* Leyenda */}
+          <div className="flex items-center gap-3 text-[10px] text-zinc-400 justify-center">
+            <span className="flex items-center gap-1">
+              <span className={`w-3 h-3 rounded-full ${col.range}`} />
+              Período
+            </span>
+            <span className="flex items-center gap-1">
+              <span className={`w-3 h-3 rounded-full ${col.classDay}`} />
+              Día de clase
+            </span>
+          </div>
+        </>
       ) : (
         <div className="h-20 flex items-center justify-center">
           <p className="text-xs text-zinc-400 text-center">Completa las fechas para ver el calendario</p>
-        </div>
-      )}
-
-      {/* Leyenda */}
-      {startDate && endDate && (
-        <div className="flex items-center gap-3 text-[10px] text-zinc-400 justify-center">
-          <span className="flex items-center gap-1">
-            <span className={`w-3 h-3 rounded-full border ${col.startCircle}`} />
-            Inicio
-          </span>
-          <span className="flex items-center gap-1">
-            <span className={`w-3 h-3 rounded-full ${col.endCircle}`} />
-            Fin
-          </span>
-          <span className="flex items-center gap-1">
-            <span className={`w-2 h-2 rounded-sm ${col.range}`} />
-            Período
-          </span>
-          <span className="flex items-center gap-1">
-            <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
-            Día de clase
-          </span>
         </div>
       )}
 
@@ -320,6 +329,10 @@ function PeriodoCard({ periodo, idx, total, freqDays, onUpdate }: {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+const DIA_LABEL: Record<string, string> = {
+  "Lunes": "Lun", "Martes": "Mar", "Miércoles": "Mié",
+  "Jueves": "Jue", "Viernes": "Vie", "Sábado": "Sáb",
+};
 const SELECT_CLASS = "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 const DATE_INPUT   = "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-40 disabled:cursor-not-allowed";
 
@@ -338,16 +351,16 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [handled, setHandled] = useState(false);
 
-  const [autoNumero, setAutoNumero]     = useState(true);
-  const [nextNumero, setNextNumero]     = useState<number | null>(null);
+  const [autoNumero, setAutoNumero]       = useState(true);
+  const [nextNumero, setNextNumero]       = useState<number | null>(null);
   const [selectedCurso, setSelectedCurso] = useState(horario?.idCurso ?? "");
   const [, startFetch] = useTransition();
 
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>(horario?.dias ?? []);
-  const [cantidadMeses,    setCantidadMeses]     = useState(horario?.cantidadMeses ? String(horario.cantidadMeses) : "");
-  const [fechaInicioVal,   setFechaInicioVal]    = useState(horario?.fechaInicio ?? "");
-  const [fechaInicioError, setFechaInicioError]  = useState<string | null>(null);
-  const [periodos,         setPeriodos]          = useState<PeriodoEdit[]>(
+  const [cantidadMeses,    setCantidadMeses]      = useState(horario?.cantidadMeses ? String(horario.cantidadMeses) : "");
+  const [fechaInicioVal,   setFechaInicioVal]     = useState(horario?.fechaInicio ?? "");
+  const [fechaInicioError, setFechaInicioError]   = useState<string | null>(null);
+  const [periodos,         setPeriodos]           = useState<PeriodoEdit[]>(
     horario?.periodos.map(p => ({ inicio: p.fechaInicio, fin: p.fechaFin })) ?? []
   );
   const [periodosModificados, setPeriodosModificados] = useState(false);
@@ -448,7 +461,7 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-5xl p-0 gap-0 flex flex-col h-[92vh] overflow-hidden">
+      <DialogContent className="sm:max-w-[1100px] p-0 gap-0 flex flex-col h-[92vh] overflow-hidden">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-100 shrink-0">
@@ -468,7 +481,7 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
           <div className="flex-1 flex overflow-hidden min-h-0">
 
             {/* ── Left: form fields ── */}
-            <div className="w-[390px] shrink-0 overflow-y-auto px-6 py-4 space-y-4 border-r border-zinc-100">
+            <div className="w-[460px] shrink-0 overflow-y-auto px-6 py-4 space-y-4 border-r border-zinc-100">
 
               {/* Curso */}
               <div className="space-y-1">
@@ -552,7 +565,7 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
                     {fmt === "24" ? "24 h" : "12 h"}
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
+                <div className="grid grid-cols-2 gap-6 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
                   <TimeField label="Inicio" name="horaInicio" parts={inicio} onChange={setInicio} fmt={fmt} error={e.horaInicio?.[0]} />
                   <TimeField label="Fin"    name="horaFin"    parts={fin}    onChange={setFin}    fmt={fmt} error={e.horaFin?.[0]}    />
                 </div>
@@ -561,17 +574,17 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
               {/* Días */}
               <div className="space-y-2">
                 <Label>Días de clase *</Label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex gap-2">
                   {DIAS.map(dia => {
                     const active = diasSeleccionados.includes(dia);
                     return (
                       <label key={dia} className={cn(
-                        "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs cursor-pointer select-none transition-colors",
+                        "flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium cursor-pointer select-none transition-colors",
                         active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
                       )}>
                         <input type="checkbox" name="dia" value={dia} checked={active}
                           onChange={() => toggleDia(dia)} className="sr-only" />
-                        {dia}
+                        {DIA_LABEL[dia] ?? dia}
                       </label>
                     );
                   })}
