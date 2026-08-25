@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toggleDocenteActivo, type DocenteSerialized } from "@/lib/actions/docentes";
 import { DocenteDialog } from "./DocenteDialog";
 import { CredencialesDialog } from "./CredencialesDialog";
+import { WhatsAppButton } from "@/components/sislider/WhatsAppButton";
 
 type Props = { docentes: DocenteSerialized[] };
 
@@ -148,8 +149,15 @@ export function DocentesTable({ docentes }: Props) {
                   <TableCell className="font-mono text-sm text-zinc-500">
                     {d.dni ?? <span className="text-zinc-300 font-sans">—</span>}
                   </TableCell>
-                  <TableCell className="font-mono text-sm text-zinc-500">
-                    {d.celular ?? <span className="text-zinc-300 font-sans">—</span>}
+                  <TableCell>
+                    {d.celular ? (
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-sm text-zinc-500">{d.celular}</span>
+                        <WhatsAppButton phone={d.celular} />
+                      </div>
+                    ) : (
+                      <span className="text-zinc-300">—</span>
+                    )}
                   </TableCell>
                   <TableCell><StatusPill active={d.activo} /></TableCell>
                   <TableCell className="text-right">

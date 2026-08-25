@@ -11,6 +11,7 @@ import { Pencil, UserCheck, UserX, Plus, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toggleAlumnoHabilitado, type AlumnoSerialized } from "@/lib/actions/alumnos";
 import { AlumnoDialog } from "./AlumnoDialog";
+import { WhatsAppButton } from "@/components/sislider/WhatsAppButton";
 
 type Props = { alumnos: AlumnoSerialized[]; autoOpen?: boolean };
 
@@ -150,7 +151,10 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                     <TableCell>
                       <p className="font-medium text-zinc-900">{alumno.apellido}, {alumno.nombre}</p>
                       {alumno.celular && (
-                        <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.celular}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <p className="text-xs font-mono text-zinc-400">{alumno.celular}</p>
+                          <WhatsAppButton phone={alumno.celular} />
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
@@ -172,7 +176,18 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                             {alumno.tutor.apellido}, {alumno.tutor.nombre}
                             <span className="ml-1 text-xs text-zinc-400">({alumno.tutor.relacion})</span>
                           </p>
-                          <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.tutor.celular}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <p className="text-xs font-mono text-zinc-400">{alumno.tutor.celular}</p>
+                            <WhatsAppButton phone={alumno.tutor.celular} />
+                          </div>
+                        </div>
+                      ) : alumno.celular ? (
+                        <div>
+                          <span className="text-xs text-zinc-400 italic">Autónomo</span>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <p className="text-xs font-mono text-zinc-400">{alumno.celular}</p>
+                            <WhatsAppButton phone={alumno.celular} />
+                          </div>
                         </div>
                       ) : (
                         <span className="text-xs text-zinc-400 italic">Autónomo</span>
