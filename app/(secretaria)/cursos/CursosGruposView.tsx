@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ChevronRight, ChevronDown, Plus, ChevronsDownUp, ChevronsUpDown,
-  Pencil, Search, GraduationCap, CalendarDays, Users, Info,
+  Pencil, Search, GraduationCap, CalendarDays, Users,
   Trash2, AlertTriangle, Lock, X, CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,6 @@ import {
 } from "@/lib/actions/horarios";
 import { CursoDialog } from "./CursoDialog";
 import { HorarioDialog } from "../horarios/HorarioDialog";
-import { HorarioDetailModal } from "../horarios/HorarioDetailModal";
 
 type Props = {
   cursos: CursoSerialized[];
@@ -117,17 +117,15 @@ function TriStateCheckbox({ state, onChange, onClick }: {
 }
 
 export function CursosGruposView({ cursos, horarios, selectData }: Props) {
+  const router = useRouter();
+
   // ── Dialogs ──────────────────────────────────────────────────────────────────
   const [cursoDialogOpen, setCursoDialogOpen] = useState(false);
   const [selectedCurso, setSelectedCurso] = useState<CursoSerialized | null>(null);
   const [cursoDialogKey, setCursoDialogKey] = useState(0);
 
   const [grupoDialogOpen, setGrupoDialogOpen] = useState(false);
-  const [selectedHorario, setSelectedHorario] = useState<HorarioSerialized | null>(null);
   const [grupoDialogKey, setGrupoDialogKey] = useState(0);
-
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailHorario, setDetailHorario] = useState<HorarioSerialized | null>(null);
 
   // ── Accordion + search + tabs ────────────────────────────────────────────────
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -222,13 +220,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
     setSelectedCurso(curso); setCursoDialogKey(k => k + 1); setCursoDialogOpen(true);
   }
   function openCreateGrupo() {
-    setSelectedHorario(null); setGrupoDialogKey(k => k + 1); setGrupoDialogOpen(true);
-  }
-  function openEditGrupo(horario: HorarioSerialized) {
-    setSelectedHorario(horario); setGrupoDialogKey(k => k + 1); setGrupoDialogOpen(true);
-  }
-  function openDetail(horario: HorarioSerialized) {
-    setDetailHorario(horario); setDetailOpen(true);
+    setGrupoDialogKey(k => k + 1); setGrupoDialogOpen(true);
   }
 
   // ── Selection helpers ─────────────────────────────────────────────────────────
@@ -538,9 +530,10 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                             return (
                               <div
                                 key={h.id}
-                                className={cn(
+                                onClick={() => !selectionMode && router.push(`/grupos/${h.id}`)}
+                              className={cn(
                                   "flex items-center gap-3 pr-4 py-2.5 transition-colors",
-                                  selectionMode ? "pl-4" : "pl-11",
+                                  selectionMode ? "pl-4" : "pl-11 cursor-pointer",
                                   selectionMode && grupoSelected
                                     ? "bg-blue-50/60 hover:bg-blue-50"
                                     : "hover:bg-zinc-100/60",
@@ -590,25 +583,10 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                                   S/{h.precioMensual.toFixed(2)}
                                 </span>
 
-                                {/* Group actions (hidden in selection mode) */}
                                 {!selectionMode && (
-                                  <div className="flex items-center gap-1.5 w-36 shrink-0 justify-end">
+                                  <div className="flex items-center gap-2 w-36 shrink-0 justify-end">
                                     <EstadoPill estado={getGrupoEstado(h)} />
-                                    <Button
-                                      size="icon-sm" variant="ghost"
-                                      onClick={() => openDetail(h)}
-                                      title="Ver detalles del grupo"
-                                      className="text-zinc-400 hover:text-blue-600 hover:bg-blue-50"
-                                    >
-                                      <Info className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                      size="icon-sm" variant="ghost"
-                                      onClick={() => openEditGrupo(h)}
-                                      title="Editar grupo"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <ChevronRight className="h-4 w-4 text-zinc-300 shrink-0" />
                                   </div>
                                 )}
                               </div>
@@ -636,13 +614,8 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
         key={grupoDialogKey}
         open={grupoDialogOpen}
         onClose={() => setGrupoDialogOpen(false)}
-        horario={selectedHorario}
+        horario={null}
         selectData={selectData}
-      />
-      <HorarioDetailModal
-        open={detailOpen}
-        onClose={() => { setDetailOpen(false); setDetailHorario(null); }}
-        horario={detailHorario}
       />
 
       {/* ── Batch delete dialog ──────────────────────────────────────────────── */}
