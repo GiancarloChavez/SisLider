@@ -62,13 +62,15 @@ export type GrupoPerfilData = {
 export default async function GrupoPerfilPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   if (process.env.NEXT_PHASE === "phase-production-build") return null;
 
+  const { id } = await params;
+
   const [raw, selectData] = await Promise.all([
     prisma.horario.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         curso: true,
         docente: true,
