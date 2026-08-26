@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -149,7 +150,12 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                 return (
                   <TableRow key={alumno.id} className="transition-colors duration-100 hover:bg-zinc-50/70">
                     <TableCell>
-                      <p className="font-medium text-zinc-900">{alumno.apellido}, {alumno.nombre}</p>
+                      <Link
+                        href={`/alumnos/${alumno.id}`}
+                        className="font-medium text-zinc-900 hover:text-blue-600 hover:underline transition-colors"
+                      >
+                        {alumno.apellido}, {alumno.nombre}
+                      </Link>
                       {/* Número propio: icono sutil si tiene apoderado (es contacto secundario) */}
                       {alumno.celular && alumno.tutor && (
                         <div className="flex items-center gap-0.5 mt-0.5">

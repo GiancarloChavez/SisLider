@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft, Pencil, Clock, MapPin, User, CalendarDays,
   BookOpen, Users, TrendingUp, Wallet,
@@ -405,9 +406,12 @@ export function GrupoPerfilView({ horario, selectData }: Props) {
                       )}
                     >
                       <td className="px-5 py-3">
-                        <p className="font-medium text-zinc-800">
+                        <Link
+                          href={`/alumnos/${m.alumno.id}`}
+                          className="font-medium text-zinc-800 hover:text-blue-600 hover:underline transition-colors"
+                        >
                           {m.alumno.apellido}, {m.alumno.nombre}
-                        </p>
+                        </Link>
                         {m.alumno.dni && (
                           <p className="text-xs text-zinc-400 mt-0.5">DNI {m.alumno.dni}</p>
                         )}
