@@ -256,15 +256,64 @@ export async function toggleHorarioActivo(id: string, activo: boolean) {
   revalidateTag("horarios");
 }
 
-export async function deleteHorario(
-  id: string
-): Promise<{ blocked: true; cantidadMatriculados: number } | { deleted: true }> {
-  const count = await prisma.matricula.count({ where: { idHorario: id } });
-  if (count > 0) return { blocked: true, cantidadMatriculados: count };
-  await prisma.$transaction([
-    prisma.horarioDia.deleteMany({ where: { idHorario: id } }),
-    prisma.horario.delete({ where: { id } }),
-  ]);
+export type BlockedGrupo = {
+  id: string;
+  numeroGrupo: string;
+  nombreCurso: string;
+  cantidadMatriculados: number;
+};
+
+/**
+ * Batch delete: elimina grupos individuales y/o cursos completos (con todos sus grupos).
+ * Bloquea si cualquier grupo en la selección tiene matriculados.
+ */
+export async function deleteBatch(
+  grupoIds: string[],
+  cursoIds: string[]
+): Promise<{ blocked: BlockedGrupo[] } | { deleted: true }> {
+  // Expandir cursoIds a sus grupos
+  const gruposFromCursos = cursoIds.length > 0
+    ? await prisma.horario.findMany({
+        where: { idCurso: { in: cursoIds } },
+        select: { id: true },
+      })
+    : [];
+
+  const allGrupoIds = [...new Set([...grupoIds, ...gruposFromCursos.map((g) => g.id)])];
+
+  // Validar matriculados
+  if (allGrupoIds.length > 0) {
+    const withMatriculas = await prisma.horario.findMany({
+      where: { id: { in: allGrupoIds }, matriculas: { some: {} } },
+      select: {
+        id: true,
+        numeroGrupo: true,
+        curso: { select: { nombre: true } },
+        _count: { select: { matriculas: true } },
+      },
+    });
+    if (withMatriculas.length > 0) {
+      return {
+        blocked: withMatriculas.map((g) => ({
+          id: g.id,
+          numeroGrupo: g.numeroGrupo,
+          nombreCurso: g.curso.nombre,
+          cantidadMatriculados: g._count.matriculas,
+        })),
+      };
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (allGrupoIds.length > 0) {
+      await tx.horarioDia.deleteMany({ where: { idHorario: { in: allGrupoIds } } });
+      await tx.horario.deleteMany({ where: { id: { in: allGrupoIds } } });
+    }
+    if (cursoIds.length > 0) {
+      await tx.curso.deleteMany({ where: { id: { in: cursoIds } } });
+    }
+  });
+
   revalidateTag("horarios");
   return { deleted: true };
 }
