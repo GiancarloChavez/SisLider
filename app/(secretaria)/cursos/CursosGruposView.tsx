@@ -47,19 +47,51 @@ const DIA_COLORS: Record<string, string> = {
   Domingo:   "bg-zinc-50 text-zinc-600 border-zinc-200",
 };
 
-function StatusPill({ active }: { active: boolean }) {
+type GrupoEstado = "vigente" | "proximo" | "culminado" | null;
+
+function getGrupoEstado(h: HorarioSerialized): GrupoEstado {
+  if (!h.fechaInicio || !h.fechaFin) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const [sy, sm, sd] = h.fechaInicio.split("-").map(Number);
+  const [ey, em, ed] = h.fechaFin.split("-").map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const end   = new Date(ey, em - 1, ed);
+  if (today < start) return "proximo";
+  if (today > end)   return "culminado";
+  return "vigente";
+}
+
+const ESTADO_STYLES: Record<string, string> = {
+  vigente:   "bg-emerald-50 text-emerald-700 border-emerald-200",
+  proximo:   "bg-blue-50 text-blue-700 border-blue-200",
+  culminado: "bg-zinc-100 text-zinc-500 border-zinc-200",
+};
+const ESTADO_LABELS: Record<string, string> = {
+  vigente:   "Vigente",
+  proximo:   "Próximo",
+  culminado: "Culminado",
+};
+
+function EstadoPill({ estado }: { estado: GrupoEstado }) {
+  if (!estado) return null;
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium shrink-0",
-      active
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-zinc-100 text-zinc-500 border-zinc-200"
+      "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium shrink-0 whitespace-nowrap",
+      ESTADO_STYLES[estado]
     )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-zinc-400")} />
-      {active ? "Activo" : "Inactivo"}
+      {ESTADO_LABELS[estado]}
     </span>
   );
 }
+
+type TabFilter = "todos" | "vigente" | "proximo" | "culminado";
+
+const TABS: { id: TabFilter; label: string }[] = [
+  { id: "todos",     label: "Todos" },
+  { id: "vigente",   label: "Vigentes" },
+  { id: "proximo",   label: "Próximos" },
+  { id: "culminado", label: "Culminados" },
+];
 
 type TriState = "checked" | "indeterminate" | "unchecked";
 
@@ -97,9 +129,10 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailHorario, setDetailHorario] = useState<HorarioSerialized | null>(null);
 
-  // ── Accordion + search ───────────────────────────────────────────────────────
+  // ── Accordion + search + tabs ────────────────────────────────────────────────
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<TabFilter>("todos");
 
   // ── Selection mode ───────────────────────────────────────────────────────────
   const [selectionMode, setSelectionMode] = useState(false);
@@ -112,6 +145,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   // ── Derived data ─────────────────────────────────────────────────────────────
+  // All groups by course — used for selection logic (unfiltered)
   const horariosByCurso = useMemo(() => {
     const map = new Map<string, HorarioSerialized[]>();
     for (const h of horarios) {
@@ -122,18 +156,44 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
     return map;
   }, [horarios]);
 
+  // Counts per estado (always across all horarios)
+  const estadoCounts = useMemo(() => {
+    const counts: Record<string, number> = { vigente: 0, proximo: 0, culminado: 0 };
+    for (const h of horarios) {
+      const e = getGrupoEstado(h);
+      if (e) counts[e]++;
+    }
+    return counts;
+  }, [horarios]);
+
+  // Tab-filtered groups by course — used for display
+  const filteredHorariosByCurso = useMemo(() => {
+    const map = new Map<string, HorarioSerialized[]>();
+    for (const h of horarios) {
+      if (activeTab !== "todos" && getGrupoEstado(h) !== activeTab) continue;
+      const list = map.get(h.idCurso) ?? [];
+      list.push(h);
+      map.set(h.idCurso, list);
+    }
+    return map;
+  }, [horarios, activeTab]);
+
   const filteredCursos = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return cursos;
-    return cursos.filter(c =>
+    let base = cursos;
+    if (activeTab !== "todos") {
+      base = base.filter(c => (filteredHorariosByCurso.get(c.id) ?? []).length > 0);
+    }
+    if (!q) return base;
+    return base.filter(c =>
       c.nombre.toLowerCase().includes(q) ||
-      (horariosByCurso.get(c.id) ?? []).some(h =>
+      (filteredHorariosByCurso.get(c.id) ?? []).some(h =>
         h.docente.nombre.toLowerCase().includes(q) ||
         h.docente.apellido.toLowerCase().includes(q) ||
         h.aula.nombre.toLowerCase().includes(q)
       )
     );
-  }, [cursos, search, horariosByCurso]);
+  }, [cursos, search, filteredHorariosByCurso, activeTab]);
 
   const allAreExpanded =
     filteredCursos.length > 0 && filteredCursos.every(c => expandedIds.has(c.id));
@@ -260,8 +320,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
     exitSelectionMode();
   }
 
-  const activosCursos = cursos.filter(c => c.activo).length;
-  const totalGrupos   = horarios.length;
+  const totalGrupos = horarios.length;
 
   return (
     <>
@@ -277,7 +336,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
             </p>
           ) : (
             <p className="text-sm text-zinc-500 mt-0.5">
-              {activosCursos} curso{activosCursos !== 1 ? "s" : ""} activo{activosCursos !== 1 ? "s" : ""}
+              {cursos.length} curso{cursos.length !== 1 ? "s" : ""}
               {" · "}
               {totalGrupos} grupo{totalGrupos !== 1 ? "s" : ""}
             </p>
@@ -329,6 +388,30 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
       {/* ── Main card ───────────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
 
+        {/* Tabs */}
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-zinc-100">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                activeTab === tab.id
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100"
+              )}
+            >
+              {tab.label}
+              {tab.id !== "todos" && estadoCounts[tab.id] > 0 && (
+                <span className="ml-1.5 text-xs opacity-60">
+                  {estadoCounts[tab.id]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Search bar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100">
           <div className="relative flex-1 max-w-xs">
@@ -365,7 +448,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
         ) : (
           <div className="divide-y divide-zinc-100">
             {filteredCursos.map(curso => {
-              const grupos     = horariosByCurso.get(curso.id) ?? [];
+              const grupos     = filteredHorariosByCurso.get(curso.id) ?? [];
               const isExpanded = expandedIds.has(curso.id);
               const checkState = getCursoCheckState(curso.id);
 
@@ -381,7 +464,6 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 cursor-pointer select-none",
                       "hover:bg-zinc-50 transition-colors",
-                      !curso.activo && "opacity-55",
                     )}
                   >
                     {/* Checkbox (selection mode only) */}
@@ -408,8 +490,6 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                       <Users className="h-3.5 w-3.5" />
                       {grupos.length} grupo{grupos.length !== 1 ? "s" : ""}
                     </span>
-
-                    <StatusPill active={curso.activo} />
 
                     {/* Actions — stop propagation so clicks don't toggle accordion */}
                     {!selectionMode && (
@@ -450,8 +530,7 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-24 shrink-0">Días</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-20 shrink-0">Horario</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-20 shrink-0">Precio/mes</span>
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 w-16 shrink-0">Estado</span>
-                            <span className="w-16 shrink-0" />
+                            <span className="w-36 shrink-0" />
                           </div>
 
                           {grupos.map(h => {
@@ -465,7 +544,6 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                                   selectionMode && grupoSelected
                                     ? "bg-blue-50/60 hover:bg-blue-50"
                                     : "hover:bg-zinc-100/60",
-                                  !h.activo && "opacity-55",
                                 )}
                               >
                                 {/* Checkbox (selection mode only) */}
@@ -512,13 +590,10 @@ export function CursosGruposView({ cursos, horarios, selectData }: Props) {
                                   S/{h.precioMensual.toFixed(2)}
                                 </span>
 
-                                <div className="w-16 shrink-0">
-                                  <StatusPill active={h.activo} />
-                                </div>
-
                                 {/* Group actions (hidden in selection mode) */}
                                 {!selectionMode && (
-                                  <div className="flex gap-1 w-16 shrink-0 justify-end">
+                                  <div className="flex items-center gap-1.5 w-36 shrink-0 justify-end">
+                                    <EstadoPill estado={getGrupoEstado(h)} />
                                     <Button
                                       size="icon-sm" variant="ghost"
                                       onClick={() => openDetail(h)}

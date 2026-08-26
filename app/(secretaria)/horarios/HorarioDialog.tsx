@@ -81,10 +81,13 @@ function TimeField({ label, name, parts, onChange, fmt, error }: {
           {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
         {fmt === "12" && (
-          <div className="flex rounded-md overflow-hidden border border-input h-9">
+          <div className="flex rounded-md overflow-hidden border border-input h-9 divide-x divide-zinc-200">
             {(["AM","PM"] as const).map((ap) => (
               <button key={ap} type="button" onClick={() => onChange({ ...parts, ampm: ap })}
-                className={`w-14 text-xs font-semibold transition-colors ${parts.ampm === ap ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-50"}`}>
+                className={cn(
+                  "w-16 text-xs font-semibold transition-colors tracking-wide",
+                  parts.ampm === ap ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-50"
+                )}>
                 {ap}
               </button>
             ))}
