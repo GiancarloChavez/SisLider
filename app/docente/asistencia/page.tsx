@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getHorariosByDocente } from "@/lib/actions/asistencias";
-import { AsistenciasView } from "@/app/(secretaria)/asistencias/AsistenciasView";
+import { AsistenciasDocenteView } from "./AsistenciasDocenteView";
 
 export const dynamic = "force-dynamic";
 
@@ -13,5 +13,5 @@ export default async function AsistenciaDocentePage() {
 
   const horarios = await getHorariosByDocente(docenteId);
 
-  return <AsistenciasView horarios={horarios} />;
+  return <AsistenciasDocenteView horarios={horarios} />;
 }
