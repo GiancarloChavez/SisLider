@@ -125,6 +125,7 @@ export async function createHorario(
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
     dias: formData.getAll("dia"),
+    fechaInicio: formData.get("fechaInicio") || undefined,
   });
 
   if (!parsed.success) {
@@ -196,6 +197,7 @@ export async function updateHorario(
     horaInicio: formData.get("horaInicio"),
     horaFin: formData.get("horaFin"),
     dias: formData.getAll("dia"),
+    fechaInicio: formData.get("fechaInicio") || undefined,
   });
 
   if (!parsed.success) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HorarioCalendario } from "@/lib/actions/clases";
@@ -291,7 +292,13 @@ export function CalendarView({ horarios }: Props) {
               const isToday = isSameDay(date, today);
               const dow = date.getDay();
               const diaEsp = Object.keys(DIA_TO_DOW).find((k) => DIA_TO_DOW[k] === dow);
-              const dayItems = diaEsp ? visibles.filter((h) => h.dias.includes(diaEsp)) : [];
+              const dayISO = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+              const dayItems = diaEsp ? visibles.filter((h) => {
+                if (!h.dias.includes(diaEsp)) return false;
+                if (h.fechaInicio && dayISO < h.fechaInicio) return false;
+                if (h.fechaFin && dayISO > h.fechaFin) return false;
+                return true;
+              }) : [];
               const layouts = computeLayout(dayItems);
               return (
                 <div key={colIdx} className={cn("relative border-l border-zinc-100", isToday && "bg-blue-50/20")}>
@@ -321,15 +328,17 @@ export function CalendarView({ horarios }: Props) {
                     const widthPct = (1 / numLanes) * 100;
                     const compact = height < 40;
                     return (
-                      <div
+                      <Link
                         key={h.id}
-                        className={cn("absolute rounded-lg border overflow-hidden", color.bg, color.border)}
+                        href={`/grupos/${h.id}`}
+                        className={cn("absolute rounded-lg border overflow-hidden hover:brightness-95 hover:shadow-md transition-all", color.bg, color.border)}
                         style={{
                           top: top + 1,
                           height: height - 2,
                           left: `calc(${leftPct}% + 2px)`,
                           width: `calc(${widthPct}% - 4px)`,
                         }}
+                        title={`${h.curso.nombre} · ${h.docente.apellido}, ${h.docente.nombre[0]}. · ${fmt12(h.horaInicio)}–${fmt12(h.horaFin)}`}
                       >
                         <div className={cn("absolute left-0 top-0 bottom-0 w-1", color.bar)} />
                         <div className="pl-2.5 pr-1.5 py-1 h-full overflow-hidden">
@@ -342,7 +351,7 @@ export function CalendarView({ horarios }: Props) {
                             </p>
                           )}
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

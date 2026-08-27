@@ -9,6 +9,8 @@ export type HorarioCalendario = {
   horaInicio: string;
   horaFin: string;
   dias: string[];
+  fechaInicio: string | null;
+  fechaFin: string | null;
   cupoOcupado: number;
   curso: { id: string; nombre: string };
   docente: { nombre: string; apellido: string };
@@ -42,6 +44,8 @@ export async function getHorariosCalendario(): Promise<HorarioCalendario[]> {
     horaInicio: h.horaInicio.toISOString().slice(11, 16),
     horaFin: h.horaFin.toISOString().slice(11, 16),
     dias: h.dias.map((d) => d.dia),
+    fechaInicio: h.fechaInicio ? h.fechaInicio.toISOString().slice(0, 10) : null,
+    fechaFin: h.fechaFin ? h.fechaFin.toISOString().slice(0, 10) : null,
     cupoOcupado: countMap[h.id] ?? 0,
     curso: { id: h.curso.id, nombre: h.curso.nombre },
     docente: { nombre: h.docente.nombre, apellido: h.docente.apellido },

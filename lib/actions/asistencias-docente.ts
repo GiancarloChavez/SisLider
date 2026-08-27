@@ -49,6 +49,10 @@ export async function getClasesDelDia(fecha: string): Promise<ClaseDelDia[]> {
       activo: true,
       curso: { activo: true },
       dias: { some: { dia } },
+      AND: [
+        { OR: [{ fechaInicio: null }, { fechaInicio: { lte: fechaDate } }] },
+        { OR: [{ fechaFin: null },    { fechaFin:    { gte: fechaDate } }] },
+      ],
     },
     include: {
       curso: { select: { nombre: true } },
