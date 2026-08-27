@@ -1,44 +1,21 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Pencil, PowerOff, Power, Plus, Search, UserCheck, KeyRound, ExternalLink } from "lucide-react";
+import { Plus, Search, UserCheck } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { toggleDocenteActivo, type DocenteSerialized } from "@/lib/actions/docentes";
+import type { DocenteSerialized } from "@/lib/actions/docentes";
 import { DocenteDialog } from "./DocenteDialog";
-import { CredencialesDialog } from "./CredencialesDialog";
-import { WhatsAppButton } from "@/components/sislider/WhatsAppButton";
 
 type Props = { docentes: DocenteSerialized[] };
 
-function StatusPill({ active }: { active: boolean }) {
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-      active
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-zinc-100 text-zinc-500 border-zinc-200"
-    )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-zinc-400")} />
-      {active ? "Activo" : "Inactivo"}
-    </span>
-  );
-}
-
 export function DocentesTable({ docentes }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selected, setSelected] = useState<DocenteSerialized | null>(null);
   const [dialogKey, setDialogKey] = useState(0);
-
-  const [credDialogOpen, setCredDialogOpen] = useState(false);
-  const [credDocente, setCredDocente] = useState<DocenteSerialized | null>(null);
-
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -53,28 +30,9 @@ export function DocentesTable({ docentes }: Props) {
   }, [docentes, search]);
 
   function openCreate() {
-    setSelected(null);
     setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
-
-  function openEdit(docente: DocenteSerialized) {
-    setSelected(docente);
-    setDialogKey((k) => k + 1);
-    setDialogOpen(true);
-  }
-
-  function openCredenciales(docente: DocenteSerialized) {
-    setCredDocente(docente);
-    setCredDialogOpen(true);
-  }
-
-  async function handleToggle(docente: DocenteSerialized) {
-    await toggleDocenteActivo(docente.id, docente.activo);
-    toast.success(docente.activo ? "Docente desactivado" : "Docente activado");
-  }
-
-  const activos = docentes.filter((d) => d.activo).length;
 
   return (
     <>
@@ -82,7 +40,7 @@ export function DocentesTable({ docentes }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Docentes</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {activos} activo{activos !== 1 ? "s" : ""} · {docentes.length} total
+            {docentes.length} docente{docentes.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2 shadow-sm">
@@ -115,14 +73,12 @@ export function DocentesTable({ docentes }: Props) {
               <TableHead className="font-semibold text-zinc-600">Apellidos y nombre</TableHead>
               <TableHead className="font-semibold text-zinc-600">DNI</TableHead>
               <TableHead className="font-semibold text-zinc-600">Celular</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
-              <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={3}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <UserCheck className="h-7 w-7 text-zinc-300" />
@@ -158,33 +114,6 @@ export function DocentesTable({ docentes }: Props) {
                   <TableCell className="font-mono text-sm text-zinc-500">
                     {d.celular ?? <span className="text-zinc-300 font-sans">—</span>}
                   </TableCell>
-                  <TableCell><StatusPill active={d.activo} /></TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end items-center gap-1">
-                      {d.celular && (
-                        <WhatsAppButton phone={d.celular} variant="button" />
-                      )}
-                      <Button size="icon-sm" variant="ghost" onClick={() => openEdit(d)} title="Editar">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon-sm" variant="ghost"
-                        onClick={() => openCredenciales(d)}
-                        title={d.email ? "Ver / regenerar credenciales" : "Crear cuenta de acceso"}
-                        className={d.email ? "text-zinc-400 hover:text-zinc-700" : "text-amber-500 hover:text-amber-700 hover:bg-amber-50"}
-                      >
-                        <KeyRound className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon-sm" variant="ghost"
-                        onClick={() => handleToggle(d)}
-                        title={d.activo ? "Desactivar" : "Activar"}
-                        className={d.activo ? "text-red-400 hover:text-red-600 hover:bg-red-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}
-                      >
-                        {d.activo ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
-                      </Button>
-                    </div>
-                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -196,15 +125,8 @@ export function DocentesTable({ docentes }: Props) {
         key={dialogKey}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        docente={selected}
+        docente={null}
       />
-      {credDocente && (
-        <CredencialesDialog
-          open={credDialogOpen}
-          onClose={() => { setCredDialogOpen(false); setCredDocente(null); }}
-          docente={credDocente}
-        />
-      )}
     </>
   );
 }

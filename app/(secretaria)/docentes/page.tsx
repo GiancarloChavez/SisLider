@@ -5,7 +5,7 @@ import type { DocenteSerialized } from "@/lib/actions/docentes";
 async function getDocentes(): Promise<DocenteSerialized[]> {
   const raw = await prisma.docente.findMany({
     include: { usuario: { select: { email: true } } },
-    orderBy: [{ activo: "desc" }, { apellido: "asc" }, { nombre: "asc" }],
+    orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
   });
   return raw.map((d) => ({
     id: d.id,

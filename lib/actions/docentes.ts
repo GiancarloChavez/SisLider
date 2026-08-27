@@ -157,13 +157,6 @@ export async function updateDocente(
   return { message: "ok" };
 }
 
-// ─── Toggle active ────────────────────────────────────────────────────────────
-
-export async function toggleDocenteActivo(id: string, activo: boolean) {
-  await prisma.docente.update({ where: { id }, data: { activo: !activo } });
-  revalidateTag("docentes");
-}
-
 // ─── Regenerate password ──────────────────────────────────────────────────────
 
 export async function regenerarPasswordDocente(
@@ -281,7 +274,7 @@ export async function getDocentesParaReemplazo(
   excludeId: string
 ): Promise<{ id: string; nombre: string; apellido: string }[]> {
   return prisma.docente.findMany({
-    where: { id: { not: excludeId }, activo: true },
+    where: { id: { not: excludeId } },
     select: { id: true, nombre: true, apellido: true },
     orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
   });
@@ -302,7 +295,7 @@ export async function deleteDocente(
       let rid = replacementId;
       if (!rid) {
         const other = await prisma.docente.findFirst({
-          where: { id: { not: id }, activo: true },
+          where: { id: { not: id } },
           select: { id: true },
         });
         if (!other) return { success: false, error: "No hay otro docente disponible para reasignar los grupos." };

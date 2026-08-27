@@ -323,15 +323,6 @@ export function DocentePerfilView({
                   <span className="text-sm font-mono text-zinc-500">{docente.celular}</span>
                 </span>
               )}
-              <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                docente.activo
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-zinc-100 text-zinc-500 border-zinc-200"
-              )}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", docente.activo ? "bg-emerald-500" : "bg-zinc-400")} />
-                {docente.activo ? "Activo" : "Inactivo"}
-              </span>
             </div>
           </div>
 
