@@ -487,12 +487,8 @@ export function AlumnoPerfilView({ alumno }: { alumno: AlumnoPerfilData }) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* WhatsApp buttons — button variant with full text */}
             {alumno.celular && (
               <WhatsAppButton phone={alumno.celular} variant="button" />
-            )}
-            {tutorPrincipal && (
-              <WhatsAppButton phone={tutorPrincipal.celular} variant="button" />
             )}
             <Button onClick={openEdit} variant="outline" className="gap-2">
               <Pencil className="h-4 w-4" />

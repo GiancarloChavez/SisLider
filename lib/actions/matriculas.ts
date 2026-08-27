@@ -146,6 +146,74 @@ export async function getMatriculaFormData(): Promise<{
   return { horarios, descuentos };
 }
 
+// ─── Alumnos view (para página principal de matrículas) ──────────────────────
+
+export type AlumnoMatriculaViewRow = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  dni: string | null;
+  celular: string | null;
+  matriculas: {
+    id: string;
+    estado: string;
+    createdAt: string;
+    fechaFin: string | null;
+    precioFinalMensual: number;
+    horario: {
+      id: string;
+      numeroGrupo: string;
+      fechaInicio: string | null;
+      fechaFin: string | null;
+      horaInicio: string;
+      horaFin: string;
+      curso: { nombre: string };
+    };
+  }[];
+};
+
+export async function getAlumnosMatriculaView(): Promise<AlumnoMatriculaViewRow[]> {
+  const alumnos = await prisma.alumno.findMany({
+    orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
+    include: {
+      matriculas: {
+        include: {
+          horario: { include: { curso: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  return alumnos.map((a) => ({
+    id: a.id,
+    nombre: a.nombre,
+    apellido: a.apellido,
+    dni: a.dni,
+    celular: a.celular,
+    matriculas: a.matriculas.map((m) => ({
+      id: m.id,
+      estado: m.estado,
+      createdAt: m.createdAt.toISOString(),
+      fechaFin: m.fechaFin ? m.fechaFin.toISOString().slice(0, 10) : null,
+      precioFinalMensual: Number(m.precioFinalMensual),
+      horario: {
+        id: m.horario.id,
+        numeroGrupo: m.horario.numeroGrupo,
+        fechaInicio: m.horario.fechaInicio
+          ? m.horario.fechaInicio.toISOString().slice(0, 10)
+          : null,
+        fechaFin: m.horario.fechaFin
+          ? m.horario.fechaFin.toISOString().slice(0, 10)
+          : null,
+        horaInicio: m.horario.horaInicio.toISOString().slice(11, 16),
+        horaFin: m.horario.horaFin.toISOString().slice(11, 16),
+        curso: { nombre: m.horario.curso.nombre },
+      },
+    })),
+  }));
+}
+
 // ─── Cursos con matrículas (para página principal) ────────────────────────────
 
 export async function getCursosConMatriculas(): Promise<CursoConMatriculas[]> {
