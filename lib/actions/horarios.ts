@@ -306,6 +306,7 @@ export async function deleteBatch(
 
   await prisma.$transaction(async (tx) => {
     if (allGrupoIds.length > 0) {
+      await tx.asistenciaDocente.deleteMany({ where: { idHorario: { in: allGrupoIds } } });
       await tx.horarioDia.deleteMany({ where: { idHorario: { in: allGrupoIds } } });
       await tx.horario.deleteMany({ where: { id: { in: allGrupoIds } } });
     }
