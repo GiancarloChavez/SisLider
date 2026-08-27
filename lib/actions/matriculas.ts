@@ -150,13 +150,15 @@ export async function getMatriculaFormData(): Promise<{
 
 export type MatriculaReciente = {
   id: string;
+  estado: string;
   createdAt: string;
-  alumno: { id: string; nombre: string; apellido: string };
+  alumno: { id: string; nombre: string; apellido: string; dni: string | null };
   horario: {
-    curso: { nombre: string };
+    curso: { id: string; nombre: string };
     numeroGrupo: string;
     horaInicio: string;
     horaFin: string;
+    fechaFin: string | null;
   };
   precioFinalMensual: number;
   primerPago: { montoTotal: number; montoPagado: number; estado: string } | null;
@@ -175,13 +177,20 @@ export async function getUltimasMatriculas(limit?: number): Promise<MatriculaRec
 
   return rows.map((m) => ({
     id: m.id,
+    estado: m.estado,
     createdAt: m.createdAt.toISOString(),
-    alumno: { id: m.alumno.id, nombre: m.alumno.nombre, apellido: m.alumno.apellido },
+    alumno: {
+      id: m.alumno.id,
+      nombre: m.alumno.nombre,
+      apellido: m.alumno.apellido,
+      dni: m.alumno.dni,
+    },
     horario: {
-      curso: { nombre: m.horario.curso.nombre },
+      curso: { id: m.horario.idCurso, nombre: m.horario.curso.nombre },
       numeroGrupo: m.horario.numeroGrupo,
       horaInicio: m.horario.horaInicio.toISOString().slice(11, 16),
       horaFin: m.horario.horaFin.toISOString().slice(11, 16),
+      fechaFin: m.horario.fechaFin ? m.horario.fechaFin.toISOString().slice(0, 10) : null,
     },
     precioFinalMensual: Number(m.precioFinalMensual),
     primerPago: m.mesesPago[0]
