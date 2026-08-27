@@ -571,3 +571,25 @@ export async function createMatriculaConPago(
   revalidateTag("dashboard");
   return { message: "ok" };
 }
+
+export async function desmatricularAlumno(
+  matriculaId: string
+): Promise<{ success: boolean; error?: string }> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  try {
+    await prisma.matricula.update({
+      where: { id: matriculaId },
+      data: { estado: "inactiva", fechaFin: today },
+    });
+  } catch (e) {
+    console.error("[desmatricularAlumno]", e);
+    return { success: false, error: "Error al desmatricular. Intenta nuevamente." };
+  }
+
+  revalidateTag("matriculas");
+  revalidateTag("dashboard");
+  return { success: true };
+}
+

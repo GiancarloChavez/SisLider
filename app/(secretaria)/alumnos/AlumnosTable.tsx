@@ -1,18 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { toast } from "sonner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Pencil, UserCheck, UserX, Plus, Search, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toggleAlumnoHabilitado, type AlumnoSerialized } from "@/lib/actions/alumnos";
+import { Plus, Search, Users } from "lucide-react";
+import { type AlumnoSerialized } from "@/lib/actions/alumnos";
 import { AlumnoDialog } from "./AlumnoDialog";
-import { WhatsAppButton } from "@/components/sislider/WhatsAppButton";
 
 type Props = { alumnos: AlumnoSerialized[]; autoOpen?: boolean };
 
@@ -26,23 +23,8 @@ function calcularEdad(fechaNacimiento: string | null): number | null {
   return edad >= 0 ? edad : null;
 }
 
-function HabilitadoPill({ habilitado }: { habilitado: boolean }) {
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-      habilitado
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-        : "bg-amber-50 text-amber-700 border-amber-200"
-    )}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", habilitado ? "bg-emerald-500" : "bg-amber-400")} />
-      {habilitado ? "Habilitado" : "Sin habilitar"}
-    </span>
-  );
-}
-
 export function AlumnosTable({ alumnos, autoOpen }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selected, setSelected] = useState<AlumnoSerialized | null>(null);
   const [dialogKey, setDialogKey] = useState(0);
   const [search, setSearch] = useState("");
 
@@ -63,23 +45,9 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
   }, []);
 
   function openCreate() {
-    setSelected(null);
     setDialogKey((k) => k + 1);
     setDialogOpen(true);
   }
-
-  function openEdit(alumno: AlumnoSerialized) {
-    setSelected(alumno);
-    setDialogKey((k) => k + 1);
-    setDialogOpen(true);
-  }
-
-  async function handleToggle(alumno: AlumnoSerialized) {
-    await toggleAlumnoHabilitado(alumno.id, alumno.habilitado);
-    toast.success(alumno.habilitado ? "Alumno deshabilitado" : "Alumno habilitado");
-  }
-
-  const habilitados = alumnos.filter((a) => a.habilitado).length;
 
   return (
     <>
@@ -87,7 +55,7 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Alumnos</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {habilitados} habilitado{habilitados !== 1 ? "s" : ""} · {alumnos.length} total
+            {alumnos.length} alumno{alumnos.length !== 1 ? "s" : ""} registrado{alumnos.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2 shadow-sm">
@@ -121,14 +89,12 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
               <TableHead className="font-semibold text-zinc-600 w-16 text-center">Edad</TableHead>
               <TableHead className="font-semibold text-zinc-600">DNI</TableHead>
               <TableHead className="font-semibold text-zinc-600">Apoderado</TableHead>
-              <TableHead className="font-semibold text-zinc-600">Estado</TableHead>
-              <TableHead className="text-right font-semibold text-zinc-600">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={4}>
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <div className="rounded-full bg-zinc-100 p-4">
                       <Users className="h-7 w-7 text-zinc-300" />
@@ -156,15 +122,7 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                       >
                         {alumno.apellido}, {alumno.nombre}
                       </Link>
-                      {/* Número propio: icono sutil si tiene apoderado (es contacto secundario) */}
-                      {alumno.celular && alumno.tutor && (
-                        <div className="flex items-center gap-0.5 mt-0.5">
-                          <p className="text-xs font-mono text-zinc-400">{alumno.celular}</p>
-                          <WhatsAppButton phone={alumno.celular} variant="icon" />
-                        </div>
-                      )}
-                      {/* Si es autónomo, solo muestra el número como texto (el botón va en acciones) */}
-                      {alumno.celular && !alumno.tutor && (
+                      {alumno.celular && (
                         <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.celular}</p>
                       )}
                     </TableCell>
@@ -189,38 +147,9 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
                           </p>
                           <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.tutor.celular}</p>
                         </div>
-                      ) : alumno.celular ? (
-                        <div>
-                          <span className="text-xs text-zinc-400 italic">Autónomo</span>
-                          <p className="text-xs font-mono text-zinc-400 mt-0.5">{alumno.celular}</p>
-                        </div>
                       ) : (
                         <span className="text-xs text-zinc-400 italic">Autónomo</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <HabilitadoPill habilitado={alumno.habilitado} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end items-center gap-1">
-                        {/* Botón principal WhatsApp: apoderado si existe, o autónomo con celular */}
-                        {alumno.tutor ? (
-                          <WhatsAppButton phone={alumno.tutor.celular} variant="button" />
-                        ) : alumno.celular ? (
-                          <WhatsAppButton phone={alumno.celular} variant="button" />
-                        ) : null}
-                        <Button size="icon-sm" variant="ghost" onClick={() => openEdit(alumno)} title="Editar">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon-sm" variant="ghost"
-                          onClick={() => handleToggle(alumno)}
-                          title={alumno.habilitado ? "Deshabilitar" : "Habilitar"}
-                          className={alumno.habilitado ? "text-red-400 hover:text-red-600 hover:bg-red-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}
-                        >
-                          {alumno.habilitado ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-                        </Button>
-                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -230,7 +159,7 @@ export function AlumnosTable({ alumnos, autoOpen }: Props) {
         </Table>
       </div>
 
-      <AlumnoDialog key={dialogKey} open={dialogOpen} onClose={() => setDialogOpen(false)} alumno={selected} />
+      <AlumnoDialog key={dialogKey} open={dialogOpen} onClose={() => setDialogOpen(false)} alumno={null} />
     </>
   );
 }
