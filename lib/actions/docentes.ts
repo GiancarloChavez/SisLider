@@ -208,6 +208,122 @@ export async function regenerarPasswordDocente(
   return { email: usuario.email, password };
 }
 
+// ─── Perfil admin ────────────────────────────────────────────────────────────
+
+export type DocentePerfilAdmin = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  dni: string | null;
+  celular: string | null;
+  activo: boolean;
+  createdAt: string;
+  email: string | null;
+  idUsuario: string | null;
+  grupos: {
+    id: string;
+    numeroGrupo: string;
+    fechaInicio: string | null;
+    fechaFin: string | null;
+    horaInicio: string;
+    horaFin: string;
+    curso: { nombre: string };
+    aula: { nombre: string };
+    dias: string[];
+    alumnosCount: number;
+  }[];
+};
+
+export async function getDocentePerfilAdmin(id: string): Promise<DocentePerfilAdmin | null> {
+  const d = await prisma.docente.findUnique({
+    where: { id },
+    include: {
+      usuario: { select: { email: true } },
+      horarios: {
+        include: {
+          curso: true,
+          aula: true,
+          dias: true,
+          _count: { select: { matriculas: { where: { estado: "activa" } } } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+  if (!d) return null;
+
+  return {
+    id: d.id,
+    nombre: d.nombre,
+    apellido: d.apellido,
+    dni: d.dni,
+    celular: d.celular,
+    activo: d.activo,
+    createdAt: d.createdAt.toISOString(),
+    email: d.usuario?.email ?? null,
+    idUsuario: d.idUsuario,
+    grupos: d.horarios.map((h) => ({
+      id: h.id,
+      numeroGrupo: h.numeroGrupo,
+      fechaInicio: h.fechaInicio ? h.fechaInicio.toISOString().slice(0, 10) : null,
+      fechaFin: h.fechaFin ? h.fechaFin.toISOString().slice(0, 10) : null,
+      horaInicio: h.horaInicio.toISOString().slice(11, 16),
+      horaFin: h.horaFin.toISOString().slice(11, 16),
+      curso: { nombre: h.curso.nombre },
+      aula: { nombre: h.aula.nombre },
+      dias: h.dias.map((dia) => dia.dia),
+      alumnosCount: h._count.matriculas,
+    })),
+  };
+}
+
+export async function getDocentesParaReemplazo(
+  excludeId: string
+): Promise<{ id: string; nombre: string; apellido: string }[]> {
+  return prisma.docente.findMany({
+    where: { id: { not: excludeId }, activo: true },
+    select: { id: true, nombre: true, apellido: true },
+    orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
+  });
+}
+
+export async function deleteDocente(
+  id: string,
+  replacementId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const d = await prisma.docente.findUnique({
+      where: { id },
+      select: { idUsuario: true, horarios: { select: { id: true } } },
+    });
+    if (!d) return { success: false, error: "Docente no encontrado" };
+
+    if (d.horarios.length > 0) {
+      let rid = replacementId;
+      if (!rid) {
+        const other = await prisma.docente.findFirst({
+          where: { id: { not: id }, activo: true },
+          select: { id: true },
+        });
+        if (!other) return { success: false, error: "No hay otro docente disponible para reasignar los grupos." };
+        rid = other.id;
+      }
+      await prisma.horario.updateMany({ where: { idDocente: id }, data: { idDocente: rid } });
+    }
+
+    if (d.idUsuario) {
+      await prisma.usuario.update({ where: { id: d.idUsuario }, data: { activo: false } });
+    }
+
+    await prisma.docente.delete({ where: { id } });
+    revalidateTag("docentes");
+    return { success: true };
+  } catch (e) {
+    console.error("[deleteDocente]", e);
+    return { success: false, error: "Error al eliminar el docente. Intenta nuevamente." };
+  }
+}
+
 // ─── Perfil portal ────────────────────────────────────────────────────────────
 
 export async function getDocentePerfil(

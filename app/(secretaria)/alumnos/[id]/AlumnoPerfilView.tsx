@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   ArrowLeft, Pencil, Phone, User, Calendar, BookOpen,
-  Users, Wallet, GraduationCap, Clock, UserMinus,
+  Users, Wallet, GraduationCap, Clock, UserMinus, Trash2, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { AlumnoDialog } from "../AlumnoDialog";
 import { WhatsAppButton } from "@/components/sislider/WhatsAppButton";
 import { desmatricularAlumno } from "@/lib/actions/matriculas";
+import { deleteAlumno } from "@/lib/actions/alumnos";
 import { DIA_TO_DOW, DIA_ABREV } from "@/lib/horario-periodos";
 import type { AlumnoPerfilData, MatriculaParaAlumno } from "./page";
 import type { AlumnoSerialized } from "@/lib/actions/alumnos";
@@ -372,6 +373,8 @@ export function AlumnoPerfilView({ alumno }: { alumno: AlumnoPerfilData }) {
   const [matriculaTab, setMatriculaTab] = useState<MatriculaTab>("vigentes");
   const [desmatricularTarget, setDesmatricularTarget] = useState<MatriculaParaAlumno | null>(null);
   const [desmatriculating, setDesmatriculating] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const edad = calcularEdad(alumno.fechaNacimiento);
   const tutorPrincipal = alumno.tutores.find((t) => t.esPrincipal) ?? null;
@@ -447,6 +450,26 @@ export function AlumnoPerfilView({ alumno }: { alumno: AlumnoPerfilData }) {
       ? { nombre: tutorPrincipal.nombre, apellido: tutorPrincipal.apellido, celular: tutorPrincipal.celular, relacion: tutorPrincipal.relacion }
       : null,
   };
+
+  const vigentesActivos = useMemo(() =>
+    alumno.matriculas.filter((m) => {
+      if (m.estado !== "activa") return false;
+      const ge = getGrupoEstado(m.horario.fechaInicio, m.horario.fechaFin);
+      return ge === "vigente" || ge === "proximo";
+    }),
+  [alumno.matriculas]);
+
+  async function handleDelete() {
+    setDeleting(true);
+    const result = await deleteAlumno(alumno.id);
+    setDeleting(false);
+    if (!result.success) {
+      toast.error(result.error ?? "Error al eliminar");
+      return;
+    }
+    toast.success("Alumno eliminado correctamente");
+    router.push("/alumnos");
+  }
 
   function openEdit() { setEditKey((k) => k + 1); setEditOpen(true); }
   function handleEditClose() { setEditOpen(false); router.refresh(); }
@@ -629,6 +652,92 @@ export function AlumnoPerfilView({ alumno }: { alumno: AlumnoPerfilData }) {
           </div>
         )}
       </div>
+
+      {/* ── Danger zone ─────────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-red-100 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-zinc-800">Eliminar alumno</p>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Esta acción es permanente y no se puede deshacer.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteOpen(true)}
+            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-2 shrink-0"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar alumno
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Delete dialog ────────────────────────────────────────────────────── */}
+      <Dialog open={deleteOpen} onOpenChange={(v) => !v && !deleting && setDeleteOpen(false)}>
+        <DialogContent className="sm:max-w-sm p-0 gap-0 overflow-hidden">
+          {vigentesActivos.length > 0 ? (
+            <>
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-amber-100 bg-amber-50">
+                <div className="rounded-full bg-amber-100 p-2 shrink-0">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                </div>
+                <DialogTitle className="text-sm font-semibold text-amber-900">
+                  No se puede eliminar
+                </DialogTitle>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <p className="text-sm text-zinc-600">
+                  El alumno tiene {vigentesActivos.length} matrícula{vigentesActivos.length !== 1 ? "s" : ""} vigente{vigentesActivos.length !== 1 ? "s" : ""}.
+                  Desmatricúlalo de todos sus cursos activos antes de eliminarlo.
+                </p>
+                <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 space-y-1">
+                  {vigentesActivos.map((m) => (
+                    <p key={m.id} className="text-xs text-zinc-600">
+                      · {m.horario.curso.nombre} — Grupo {m.horario.numeroGrupo}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end px-5 py-3 border-t border-zinc-100">
+                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(false)}>Cerrar</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-red-100 bg-red-50">
+                <div className="rounded-full bg-red-100 p-2 shrink-0">
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </div>
+                <DialogTitle className="text-sm font-semibold text-red-900">
+                  Eliminar alumno
+                </DialogTitle>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-sm text-zinc-600">
+                  ¿Estás seguro de eliminar a{" "}
+                  <span className="font-semibold text-zinc-800">{alumno.apellido}, {alumno.nombre}</span>?
+                  Se eliminarán todos sus registros de pagos y asistencias. Esta acción no se puede deshacer.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 px-5 py-3 border-t border-zinc-100">
+                <Button variant="outline" size="sm" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleting ? "Eliminando..." : "Eliminar"}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Dialogs ─────────────────────────────────────────────────────────── */}
       <AlumnoDialog

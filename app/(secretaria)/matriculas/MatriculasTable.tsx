@@ -284,7 +284,7 @@ export function MatriculasHistorial({ matriculas }: { matriculas: MatriculaRecie
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={filters.estadoPago} onValueChange={(v) => setFilter("estadoPago", v)}>
               <SelectTrigger className="h-8 text-sm w-36 bg-white">
-                <SelectValue placeholder="Estado pago" />
+                <SelectValue placeholder="Todos los pagos" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los pagos</SelectItem>
@@ -296,7 +296,7 @@ export function MatriculasHistorial({ matriculas }: { matriculas: MatriculaRecie
 
             <Select value={filters.estadoMatricula} onValueChange={(v) => setFilter("estadoMatricula", v)}>
               <SelectTrigger className="h-8 text-sm w-40 bg-white">
-                <SelectValue placeholder="Estado" />
+                <SelectValue placeholder="Todos los estados" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los estados</SelectItem>
@@ -308,7 +308,7 @@ export function MatriculasHistorial({ matriculas }: { matriculas: MatriculaRecie
 
             <Select value={filters.cursoId} onValueChange={(v) => setFilter("cursoId", v)}>
               <SelectTrigger className="h-8 text-sm w-40 bg-white">
-                <SelectValue placeholder="Curso" />
+                <SelectValue placeholder="Todos los cursos" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los cursos</SelectItem>

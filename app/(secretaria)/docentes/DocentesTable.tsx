@@ -7,7 +7,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Pencil, PowerOff, Power, Plus, Search, UserCheck, KeyRound } from "lucide-react";
+import { Pencil, PowerOff, Power, Plus, Search, UserCheck, KeyRound, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toggleDocenteActivo, type DocenteSerialized } from "@/lib/actions/docentes";
 import { DocenteDialog } from "./DocenteDialog";
@@ -141,7 +142,12 @@ export function DocentesTable({ docentes }: Props) {
               filtered.map((d) => (
                 <TableRow key={d.id} className="transition-colors duration-100 hover:bg-zinc-50/70">
                   <TableCell>
-                    <p className="font-medium text-zinc-900">{d.apellido}, {d.nombre}</p>
+                    <Link
+                      href={`/docentes/${d.id}`}
+                      className="font-medium text-zinc-900 hover:text-blue-600 hover:underline transition-colors"
+                    >
+                      {d.apellido}, {d.nombre}
+                    </Link>
                     {d.email && (
                       <p className="text-xs text-zinc-400 font-mono mt-0.5">{d.email}</p>
                     )}

@@ -210,3 +210,23 @@ export async function toggleAlumnoHabilitado(id: string, habilitado: boolean) {
   await prisma.alumno.update({ where: { id }, data: { habilitado: !habilitado } });
   revalidateTag("alumnos");
 }
+
+export async function deleteAlumno(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await prisma.$transaction([
+      prisma.recuperacion.deleteMany({ where: { asistencia: { matricula: { idAlumno: id } } } }),
+      prisma.asistencia.deleteMany({ where: { matricula: { idAlumno: id } } }),
+      prisma.abono.deleteMany({ where: { mesPago: { matricula: { idAlumno: id } } } }),
+      prisma.mesPago.deleteMany({ where: { matricula: { idAlumno: id } } }),
+      prisma.matriculaDia.deleteMany({ where: { matricula: { idAlumno: id } } }),
+      prisma.matricula.deleteMany({ where: { idAlumno: id } }),
+      prisma.tutorAlumno.deleteMany({ where: { idAlumno: id } }),
+      prisma.alumno.delete({ where: { id } }),
+    ]);
+    revalidateTag("alumnos");
+    return { success: true };
+  } catch (e) {
+    console.error("[deleteAlumno]", e);
+    return { success: false, error: "Error al eliminar el alumno. Intenta nuevamente." };
+  }
+}
