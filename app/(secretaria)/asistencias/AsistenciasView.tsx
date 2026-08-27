@@ -1,43 +1,29 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useTransition, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  CheckCircle, XCircle, Clock, FileText, Save, ChevronLeft, ChevronRight,
-  Loader2, History,
+  ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock,
+  CalendarDays, History, Loader2,
 } from "lucide-react";
 import {
-  getEstudiantesDelHorario,
-  guardarAsistencias,
-  type HorarioAsistenciaOption,
-  type EstudianteAsistencia,
-} from "@/lib/actions/asistencias";
+  getClasesDelDia,
+  getHistorialAsistenciasDocente,
+  registrarAsistenciaDocente,
+  type ClaseDelDia,
+  type RegistroHistorial,
+} from "@/lib/actions/asistencias-docente";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Date helpers ─────────────────────────────────────────────────────────────
 
-const DIAS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] as const;
-
-const ESTADOS = [
-  { value: "presente",    label: "Presente",    icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200 text-emerald-700" },
-  { value: "tarde",       label: "Tarde",       icon: Clock,       color: "text-amber-500",   bg: "bg-amber-50 border-amber-200 text-amber-700" },
-  { value: "ausente",     label: "Ausente",     icon: XCircle,     color: "text-red-500",     bg: "bg-red-50 border-red-200 text-red-700" },
-  { value: "justificado", label: "Justificado", icon: FileText,    color: "text-blue-500",    bg: "bg-blue-50 border-blue-200 text-blue-700" },
-] as const;
-
-type EstadoValue = "presente" | "tarde" | "ausente" | "justificado";
+const DIAS_ES  = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MESES_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
 function todayISO(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatDateLabel(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
 function addDays(iso: string, n: number): string {
@@ -46,122 +32,299 @@ function addDays(iso: string, n: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function dayOfWeekName(iso: string): string {
+function formatFechaLarga(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  return DIAS_ES[date.getDay()];
+  return `${DIAS_ES[date.getDay()]}, ${d} de ${MESES_ES[m - 1]} de ${y}`;
+}
+
+function formatFechaCorta(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${MESES_ES[m - 1]}. ${y}`;
+}
+
+function currentTimeHHMM(): string {
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;
+}
+
+// ─── Estado badge ─────────────────────────────────────────────────────────────
+
+function EstadoBadge({ estado }: { estado: string }) {
+  if (estado === "presente") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        Asistió
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">
+      <XCircle className="h-3.5 w-3.5" />
+      Ausente
+    </span>
+  );
+}
+
+// ─── Clase card (daily view) ──────────────────────────────────────────────────
+
+function ClaseCard({
+  clase,
+  esHoy,
+  nowHHMM,
+  isLast,
+  onRegistrar,
+  loading,
+}: {
+  clase: ClaseDelDia;
+  esHoy: boolean;
+  nowHHMM: string;
+  isLast: boolean;
+  onRegistrar: (idHorario: string, estado: "presente" | "ausente") => void;
+  loading: boolean;
+}) {
+  const isActive = esHoy && nowHHMM >= clase.horaInicio && nowHHMM < clase.horaFin;
+  const isPast   = !esHoy || nowHHMM >= clase.horaFin;
+  const estado   = clase.asistencia?.estado ?? null;
+
+  return (
+    <div className="flex items-stretch gap-0">
+      {/* Time column */}
+      <div className="w-20 shrink-0 flex flex-col items-end pt-4 pr-4 text-right">
+        <span className="text-sm font-mono font-semibold text-zinc-800 leading-none">{clase.horaInicio}</span>
+        <span className="text-xs font-mono text-zinc-400 mt-1">{clase.horaFin}</span>
+      </div>
+
+      {/* Timeline track */}
+      <div className="flex flex-col items-center shrink-0 w-5">
+        <div className={cn(
+          "mt-4 h-2.5 w-2.5 rounded-full ring-2 shrink-0",
+          isActive
+            ? "bg-emerald-500 ring-emerald-200"
+            : estado === "presente"
+            ? "bg-emerald-400 ring-emerald-100"
+            : estado === "ausente"
+            ? "bg-red-400 ring-red-100"
+            : "bg-zinc-300 ring-zinc-100"
+        )} />
+        {!isLast && <div className="flex-1 w-px bg-zinc-200 mt-1" />}
+      </div>
+
+      {/* Card */}
+      <div className={cn(
+        "flex-1 rounded-xl border mx-2 mb-3 mt-2 transition-colors",
+        isActive
+          ? "border-emerald-200 bg-emerald-50/60 shadow-sm"
+          : "border-zinc-200 bg-white hover:bg-zinc-50/60"
+      )}>
+        <div className="flex items-start justify-between gap-4 px-4 py-3 flex-wrap">
+          {/* Left: class info */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-zinc-900">{clase.curso.nombre}</span>
+              <span className="text-xs text-zinc-400 font-mono">Gp. {clase.numeroGrupo}</span>
+              {isActive && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  En curso
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-zinc-600 mt-0.5 font-medium">
+              {clase.docente.apellido}, {clase.docente.nombre}
+            </p>
+            <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {clase.horaInicio}–{clase.horaFin} · {clase.aula.nombre}
+            </p>
+          </div>
+
+          {/* Right: action or status */}
+          <div className="flex items-center gap-2 shrink-0">
+            {estado ? (
+              <>
+                <EstadoBadge estado={estado} />
+                {esHoy && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-zinc-400 hover:text-zinc-700 px-2"
+                    disabled={loading}
+                    onClick={() => onRegistrar(clase.idHorario, estado === "presente" ? "ausente" : "presente")}
+                  >
+                    Cambiar
+                  </Button>
+                )}
+              </>
+            ) : esHoy ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={loading}
+                  onClick={() => onRegistrar(clase.idHorario, "presente")}
+                  className="h-8 gap-1.5 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Confirmar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={loading}
+                  onClick={() => onRegistrar(clase.idHorario, "ausente")}
+                  className="h-8 gap-1.5 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  Ausente
+                </Button>
+              </>
+            ) : (
+              <span className="text-xs text-zinc-400 italic">Sin registrar</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Historial view ───────────────────────────────────────────────────────────
+
+function HistorialView({ registros }: { registros: RegistroHistorial[] }) {
+  const grouped = useMemo(() => {
+    const map = new Map<string, RegistroHistorial[]>();
+    for (const r of registros) {
+      const list = map.get(r.fecha) ?? [];
+      list.push(r);
+      map.set(r.fecha, list);
+    }
+    return [...map.entries()].sort(([a], [b]) => b.localeCompare(a));
+  }, [registros]);
+
+  if (grouped.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400">
+        <History className="h-10 w-10 opacity-20" />
+        <p className="text-sm">No hay registros de asistencia aún</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {grouped.map(([fecha, items]) => (
+        <div key={fecha}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2 px-1">
+            {formatFechaCorta(fecha)}
+          </p>
+          <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden divide-y divide-zinc-100">
+            {items.map((r) => (
+              <div key={r.id} className="flex items-center gap-4 px-4 py-3">
+                <span className="text-xs font-mono text-zinc-400 w-24 shrink-0">
+                  {r.horario.horaInicio}–{r.horario.horaFin}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-900 truncate">
+                    {r.horario.curso.nombre}
+                    <span className="ml-1.5 text-xs text-zinc-400 font-mono font-normal">Gp. {r.horario.numeroGrupo}</span>
+                  </p>
+                  <p className="text-xs text-zinc-500 truncate">
+                    {r.horario.docente.apellido}, {r.horario.docente.nombre}
+                  </p>
+                </div>
+                <EstadoBadge estado={r.estado} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── Main view ────────────────────────────────────────────────────────────────
 
-type Props = { horarios: HorarioAsistenciaOption[] };
+type Tab = "diario" | "historial";
 
-export function AsistenciasView({ horarios }: Props) {
+type Props = {
+  initialClases: ClaseDelDia[];
+};
+
+export function AsistenciasView({ initialClases }: Props) {
+  const [tab, setTab] = useState<Tab>("diario");
   const [fecha, setFecha] = useState(todayISO);
-  const [selectedHorarioId, setSelectedHorarioId] = useState<string | null>(null);
-  const [estudiantes, setEstudiantes] = useState<EstudianteAsistencia[]>([]);
-  const [estadoMap, setEstadoMap] = useState<Record<string, EstadoValue>>({});
-  const [loadingEstudiantes, setLoadingEstudiantes] = useState(false);
+  const [clases, setClases] = useState<ClaseDelDia[]>(initialClases);
+  const [historial, setHistorial] = useState<RegistroHistorial[] | null>(null);
+  const [loadingFecha, setLoadingFecha] = useState(false);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const nowHHMM = useMemo(() => currentTimeHHMM(), []);
+  const esHoy = fecha === todayISO();
 
-  const isReadOnly = fecha !== todayISO();
-
-  // Filter horarios that meet on the selected day
-  const horariosDia = useMemo(() => {
-    const dia = dayOfWeekName(fecha);
-    return horarios.filter((h) => h.dias.includes(dia));
-  }, [horarios, fecha]);
-
-  // Auto-deselect horario when it doesn't meet on new date
-  useEffect(() => {
-    if (selectedHorarioId && !horariosDia.find((h) => h.id === selectedHorarioId)) {
-      setSelectedHorarioId(null);
-      setEstudiantes([]);
-      setEstadoMap({});
-    }
-  }, [horariosDia, selectedHorarioId]);
-
-  // Load students when horario or date changes
-  useEffect(() => {
-    if (!selectedHorarioId) return;
-    setLoadingEstudiantes(true);
-    getEstudiantesDelHorario(selectedHorarioId, fecha).then((data) => {
-      setEstudiantes(data);
-      const initial: Record<string, EstadoValue> = {};
-      data.forEach((e) => {
-        initial[e.idMatricula] = (e.asistencia?.estado ?? "presente") as EstadoValue;
-      });
-      setEstadoMap(initial);
-      setLoadingEstudiantes(false);
-    });
-  }, [selectedHorarioId, fecha]);
-
-  function toggleEstado(idMatricula: string, estado: EstadoValue) {
-    setEstadoMap((prev) => ({ ...prev, [idMatricula]: estado }));
+  // Change date
+  async function cambiarFecha(newFecha: string) {
+    setFecha(newFecha);
+    setLoadingFecha(true);
+    const data = await getClasesDelDia(newFecha);
+    setClases(data);
+    setLoadingFecha(false);
   }
 
-  function handleGuardar() {
-    if (!selectedHorarioId || !estudiantes.length) return;
-    const registros = estudiantes.map((e) => ({
-      idMatricula: e.idMatricula,
-      estado: estadoMap[e.idMatricula] ?? "presente",
-    }));
+  // Switch to historial tab — lazy load
+  async function openHistorial() {
+    setTab("historial");
+    if (historial !== null) return;
+    setLoadingHistorial(true);
+    const data = await getHistorialAsistenciasDocente();
+    setHistorial(data);
+    setLoadingHistorial(false);
+  }
+
+  // Register attendance (optimistic)
+  const handleRegistrar = useCallback((idHorario: string, estado: "presente" | "ausente") => {
+    // Optimistic update
+    setClases((prev) =>
+      prev.map((c) =>
+        c.idHorario === idHorario
+          ? { ...c, asistencia: { id: "optimistic", estado } }
+          : c
+      )
+    );
+
     startTransition(async () => {
-      const result = await guardarAsistencias(fecha, registros);
+      const result = await registrarAsistenciaDocente(idHorario, fecha, estado);
       if (result.error) {
         toast.error(result.error);
+        // Revert on error
+        const fresh = await getClasesDelDia(fecha);
+        setClases(fresh);
       } else {
-        toast.success("Asistencias guardadas");
+        toast.success(estado === "presente" ? "Asistencia confirmada" : "Ausencia registrada");
+        // Invalidate historial cache so it reloads next time
+        setHistorial(null);
       }
     });
-  }
-
-  function markAll(estado: EstadoValue) {
-    const next: Record<string, EstadoValue> = {};
-    estudiantes.forEach((e) => { next[e.idMatricula] = estado; });
-    setEstadoMap(next);
-  }
-
-  // Editable counts (from estadoMap)
-  const presentes = Object.values(estadoMap).filter((v) => v === "presente").length;
-  const ausentes  = Object.values(estadoMap).filter((v) => v === "ausente").length;
-  const tardes    = Object.values(estadoMap).filter((v) => v === "tarde").length;
-
-  // Read-only counts (from actual saved asistencias)
-  const rPresentes   = estudiantes.filter((e) => e.asistencia?.estado === "presente").length;
-  const rTardes      = estudiantes.filter((e) => e.asistencia?.estado === "tarde").length;
-  const rAusentes    = estudiantes.filter((e) => e.asistencia?.estado === "ausente").length;
-  const rSinRegistro = estudiantes.filter((e) => !e.asistencia).length;
+  }, [fecha]);
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Asistencias</h1>
-          <p className="text-sm text-zinc-500 capitalize">{formatDateLabel(fecha)}</p>
+          <p className="text-sm text-zinc-500 mt-0.5">Control de asistencia de docentes</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Historial shortcut */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFecha(addDays(todayISO(), -1))}
-            className="gap-1.5 text-xs h-9 text-zinc-600"
-          >
-            <History className="h-3.5 w-3.5" />
-            Historial
-          </Button>
-
-          {/* Date navigator */}
+        {/* Date navigator — only visible in diario tab */}
+        {tab === "diario" && (
           <div className="flex items-center rounded-lg border border-zinc-200 bg-white overflow-hidden shadow-sm">
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => setFecha((f) => addDays(f, -1))}
+              onClick={() => cambiarFecha(addDays(fecha, -1))}
               className="rounded-none border-r border-zinc-200 h-9 w-9"
-              aria-label="Día anterior"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -169,204 +332,131 @@ export function AsistenciasView({ horarios }: Props) {
               type="date"
               value={fecha}
               max={todayISO()}
-              onChange={(e) => setFecha(e.target.value)}
+              onChange={(e) => e.target.value && cambiarFecha(e.target.value)}
               className="px-3 text-sm font-medium text-zinc-700 bg-white border-none outline-none cursor-pointer h-9"
             />
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => setFecha((f) => addDays(f, 1))}
-              disabled={fecha >= todayISO()}
+              onClick={() => cambiarFecha(addDays(fecha, 1))}
+              disabled={esHoy}
               className="rounded-none border-l border-zinc-200 h-9 w-9 disabled:opacity-30"
-              aria-label="Día siguiente"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-[260px_1fr] gap-4 items-start">
-        {/* ── Horario list ─────────────────────────────────────── */}
-        <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-              Clases del {dayOfWeekName(fecha)}
-            </p>
-          </div>
-
-          {horariosDia.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-zinc-400">
-              No hay clases este día
-            </div>
-          ) : (
-            <ul className="divide-y divide-zinc-100">
-              {horariosDia.map((h) => {
-                const active = h.id === selectedHorarioId;
-                return (
-                  <li key={h.id}>
-                    <button
-                      onClick={() => setSelectedHorarioId(h.id)}
-                      className={cn(
-                        "w-full text-left px-4 py-3 transition-colors",
-                        active ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-700"
-                      )}
-                    >
-                      <p className={cn("text-sm font-semibold leading-tight", active ? "text-white" : "text-zinc-900")}>
-                        {h.curso.nombre}
-                      </p>
-                      <p className={cn("text-xs mt-0.5", active ? "text-zinc-300" : "text-zinc-500")}>
-                        {h.horaInicio}–{h.horaFin} · {h.aula.nombre}
-                      </p>
-                      <p className={cn("text-xs mt-0.5", active ? "text-zinc-400" : "text-zinc-400")}>
-                        {h.docente.apellido}, {h.docente.nombre[0]}.
-                      </p>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+      {/* ── Tabs ── */}
+      <div className="flex items-center gap-1 border-b border-zinc-200 pb-0">
+        <button
+          type="button"
+          onClick={() => setTab("diario")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+            tab === "diario"
+              ? "border-zinc-900 text-zinc-900"
+              : "border-transparent text-zinc-500 hover:text-zinc-700"
           )}
-        </div>
+        >
+          <CalendarDays className="h-4 w-4" />
+          Diario
+        </button>
+        <button
+          type="button"
+          onClick={openHistorial}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+            tab === "historial"
+              ? "border-zinc-900 text-zinc-900"
+              : "border-transparent text-zinc-500 hover:text-zinc-700"
+          )}
+        >
+          <History className="h-4 w-4" />
+          Historial
+        </button>
+      </div>
 
-        {/* ── Attendance sheet ─────────────────────────────────── */}
-        <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-          {!selectedHorarioId ? (
-            <div className="flex flex-col items-center justify-center py-24 text-zinc-400 gap-2">
-              <CheckCircle className="h-10 w-10 opacity-20" />
-              <p className="text-sm">
-                {isReadOnly
-                  ? "Selecciona una clase para ver el reporte"
-                  : "Selecciona una clase para registrar asistencia"}
-              </p>
-            </div>
-          ) : loadingEstudiantes ? (
-            <div className="flex items-center justify-center py-24 text-zinc-400 gap-2">
+      {/* ── Diario tab ── */}
+      {tab === "diario" && (
+        <div>
+          {/* Date label */}
+          <p className="text-sm font-medium text-zinc-500 capitalize mb-4">
+            {formatFechaLarga(fecha)}
+            {esHoy && (
+              <span className="ml-2 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                Hoy
+              </span>
+            )}
+          </p>
+
+          {loadingFecha ? (
+            <div className="flex items-center justify-center py-20 gap-2 text-zinc-400">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <p className="text-sm">Cargando estudiantes…</p>
+              <span className="text-sm">Cargando clases…</span>
             </div>
-          ) : estudiantes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-zinc-400 gap-2">
-              <p className="text-sm">No hay alumnos matriculados en esta clase para esta fecha</p>
+          ) : clases.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400">
+              <CalendarDays className="h-10 w-10 opacity-20" />
+              <p className="text-sm">No hay clases programadas este día</p>
             </div>
-          ) : isReadOnly ? (
-            /* ── Read-only report mode ── */
-            <>
-              <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-zinc-700">
-                    {estudiantes.length} alumno{estudiantes.length !== 1 ? "s" : ""}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {rPresentes > 0   && <Badge className="bg-emerald-100 text-emerald-700 border-0">{rPresentes} P</Badge>}
-                    {rTardes > 0      && <Badge className="bg-amber-100 text-amber-700 border-0">{rTardes} T</Badge>}
-                    {rAusentes > 0    && <Badge className="bg-red-100 text-red-700 border-0">{rAusentes} A</Badge>}
-                    {rSinRegistro > 0 && <Badge className="bg-zinc-100 text-zinc-500 border-0">{rSinRegistro} sin registro</Badge>}
-                  </div>
-                </div>
-                <span className="flex items-center gap-1.5 text-xs text-zinc-400">
-                  <History className="h-3.5 w-3.5" />
-                  Reporte histórico · Solo lectura
-                </span>
-              </div>
-
-              <div className="divide-y divide-zinc-100">
-                {estudiantes.map((est, idx) => {
-                  const estadoGuardado = est.asistencia?.estado;
-                  const estadoInfo = ESTADOS.find((e) => e.value === estadoGuardado);
-                  const Icon = estadoInfo?.icon;
-                  return (
-                    <div key={est.idMatricula} className="flex items-center px-5 py-3 gap-4">
-                      <span className="text-xs font-mono text-zinc-300 w-5 shrink-0 text-right">{idx + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-zinc-900 truncate">
-                          {est.alumno.apellido}, {est.alumno.nombre}
-                        </p>
-                      </div>
-                      {estadoInfo && Icon ? (
-                        <span className={cn("flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium", estadoInfo.bg)}>
-                          <Icon className="h-3.5 w-3.5 shrink-0" />
-                          {estadoInfo.label}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-zinc-400 border border-zinc-200 rounded-full px-2.5 py-1">
-                          Sin registro
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
           ) : (
-            /* ── Editable mode (today only) ── */
-            <>
-              <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-zinc-700">{estudiantes.length} alumno{estudiantes.length !== 1 ? "s" : ""}</span>
-                  <div className="flex items-center gap-1.5">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-0">{presentes} P</Badge>
-                    <Badge className="bg-amber-100 text-amber-700 border-0">{tardes} T</Badge>
-                    <Badge className="bg-red-100 text-red-700 border-0">{ausentes} A</Badge>
-                  </div>
+            <div>
+              {/* Stats strip */}
+              {esHoy && (
+                <div className="flex items-center gap-3 mb-4 px-1">
+                  <span className="text-xs text-zinc-500">{clases.length} clase{clases.length !== 1 ? "s" : ""} hoy</span>
+                  {clases.filter(c => c.asistencia?.estado === "presente").length > 0 && (
+                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                      {clases.filter(c => c.asistencia?.estado === "presente").length} confirmada{clases.filter(c => c.asistencia?.estado === "presente").length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {clases.filter(c => c.asistencia?.estado === "ausente").length > 0 && (
+                    <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                      {clases.filter(c => c.asistencia?.estado === "ausente").length} ausente{clases.filter(c => c.asistencia?.estado === "ausente").length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {clases.filter(c => !c.asistencia).length > 0 && (
+                    <span className="text-xs text-zinc-400">
+                      {clases.filter(c => !c.asistencia).length} sin registrar
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-400">Marcar todos:</span>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => markAll("presente")}>Presente</Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => markAll("ausente")}>Ausente</Button>
-                  <Button
-                    size="sm"
-                    className="h-7 gap-1.5"
-                    onClick={handleGuardar}
-                    disabled={isPending}
-                  >
-                    {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    Guardar
-                  </Button>
-                </div>
-              </div>
+              )}
 
-              <div className="divide-y divide-zinc-100">
-                {estudiantes.map((est, idx) => {
-                  const estadoActual = estadoMap[est.idMatricula] ?? "presente";
-                  return (
-                    <div key={est.idMatricula} className="flex items-center px-5 py-3 gap-4 hover:bg-zinc-50 transition-colors">
-                      <span className="text-xs font-mono text-zinc-300 w-5 shrink-0 text-right">{idx + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-zinc-900 truncate">
-                          {est.alumno.apellido}, {est.alumno.nombre}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {ESTADOS.map((e) => {
-                          const Icon = e.icon;
-                          const selected = estadoActual === e.value;
-                          return (
-                            <button
-                              key={e.value}
-                              onClick={() => toggleEstado(est.idMatricula, e.value)}
-                              className={cn(
-                                "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
-                                selected
-                                  ? e.bg
-                                  : "border-zinc-200 text-zinc-400 hover:border-zinc-300 hover:text-zinc-600"
-                              )}
-                              title={e.label}
-                            >
-                              <Icon className="h-3.5 w-3.5 shrink-0" />
-                              <span className="hidden sm:inline">{e.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Timeline */}
+              <div>
+                {clases.map((clase, idx) => (
+                  <ClaseCard
+                    key={clase.idHorario}
+                    clase={clase}
+                    esHoy={esHoy}
+                    nowHHMM={nowHHMM}
+                    isLast={idx === clases.length - 1}
+                    onRegistrar={handleRegistrar}
+                    loading={isPending}
+                  />
+                ))}
               </div>
-            </>
+            </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* ── Historial tab ── */}
+      {tab === "historial" && (
+        <div>
+          {loadingHistorial ? (
+            <div className="flex items-center justify-center py-20 gap-2 text-zinc-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-sm">Cargando historial…</span>
+            </div>
+          ) : (
+            <HistorialView registros={historial ?? []} />
+          )}
+        </div>
+      )}
     </div>
   );
 }

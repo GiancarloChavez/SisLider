@@ -16,12 +16,13 @@ model Usuario {
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 
-  docente          Docente?
-  asistencias      Asistencia[]
-  abonos           Abono[]
-  snackCompras     SnackCompra[]
-  snackVentas      SnackVenta[]
-  snackCajaDiaria  SnackCajaDiaria[]
+  docente              Docente?
+  asistencias          Asistencia[]
+  asistenciasDocente   AsistenciaDocente[]
+  abonos               Abono[]
+  snackCompras         SnackCompra[]
+  snackVentas          SnackVenta[]
+  snackCajaDiaria      SnackCajaDiaria[]
 
   @@map("usuarios")
 }
@@ -126,10 +127,11 @@ model Horario {
   curso          Curso            @relation(fields: [idCurso], references: [id])
   docente        Docente          @relation(fields: [idDocente], references: [id])
   aula           Aula             @relation(fields: [idAula], references: [id])
-  dias           HorarioDia[]
-  periodos       HorarioPeriodo[]
-  matriculas     Matricula[]
-  recuperaciones Recuperacion[]
+  dias               HorarioDia[]
+  periodos           HorarioPeriodo[]
+  matriculas         Matricula[]
+  recuperaciones     Recuperacion[]
+  asistenciasDocente AsistenciaDocente[]
 
   @@unique([idCurso, numeroGrupo])
   @@map("horarios")
@@ -268,6 +270,21 @@ model Asistencia {
 
   @@unique([idMatricula, fecha])
   @@map("asistencias")
+}
+
+model AsistenciaDocente {
+  id        String   @id @default(uuid())
+  idHorario String   @map("id_horario")
+  idUsuario String   @map("id_usuario")
+  fecha     DateTime @db.Date
+  estado    String   @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  horario Horario @relation(fields: [idHorario], references: [id])
+  usuario Usuario @relation(fields: [idUsuario], references: [id])
+
+  @@unique([idHorario, fecha])
+  @@map("asistencias_docente")
 }
 
 model Recuperacion {
