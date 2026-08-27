@@ -146,6 +146,54 @@ export async function getMatriculaFormData(): Promise<{
   return { horarios, descuentos };
 }
 
+// ─── Matrículas recientes / historial ────────────────────────────────────────
+
+export type MatriculaReciente = {
+  id: string;
+  createdAt: string;
+  alumno: { id: string; nombre: string; apellido: string };
+  horario: {
+    curso: { nombre: string };
+    numeroGrupo: string;
+    horaInicio: string;
+    horaFin: string;
+  };
+  precioFinalMensual: number;
+  primerPago: { montoTotal: number; montoPagado: number; estado: string } | null;
+};
+
+export async function getUltimasMatriculas(limit?: number): Promise<MatriculaReciente[]> {
+  const rows = await prisma.matricula.findMany({
+    orderBy: { createdAt: "desc" },
+    ...(limit ? { take: limit } : {}),
+    include: {
+      alumno: true,
+      horario: { include: { curso: true } },
+      mesesPago: { orderBy: { createdAt: "asc" }, take: 1 },
+    },
+  });
+
+  return rows.map((m) => ({
+    id: m.id,
+    createdAt: m.createdAt.toISOString(),
+    alumno: { id: m.alumno.id, nombre: m.alumno.nombre, apellido: m.alumno.apellido },
+    horario: {
+      curso: { nombre: m.horario.curso.nombre },
+      numeroGrupo: m.horario.numeroGrupo,
+      horaInicio: m.horario.horaInicio.toISOString().slice(11, 16),
+      horaFin: m.horario.horaFin.toISOString().slice(11, 16),
+    },
+    precioFinalMensual: Number(m.precioFinalMensual),
+    primerPago: m.mesesPago[0]
+      ? {
+          montoTotal: Number(m.mesesPago[0].montoTotal),
+          montoPagado: Number(m.mesesPago[0].montoPagado),
+          estado: m.mesesPago[0].estado,
+        }
+      : null,
+  }));
+}
+
 // ─── Alumnos view (para página principal de matrículas) ──────────────────────
 
 export type AlumnoMatriculaViewRow = {
