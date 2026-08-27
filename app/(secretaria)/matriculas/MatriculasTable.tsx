@@ -188,8 +188,8 @@ export function MatriculasHistorial({ matriculas }: { matriculas: MatriculaRecie
   const router = useRouter();
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
-  function setFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+  function setFilter(key: keyof Filters, value: string | null) {
+    setFilters((prev) => ({ ...prev, [key]: value ?? EMPTY_FILTERS[key] }));
   }
 
   const cursos = useMemo(() => {
