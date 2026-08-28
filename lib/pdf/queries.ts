@@ -74,6 +74,7 @@ export type ReporteIngresosMensualData = {
   }[];
   totalEfectivo: number;
   totalTransferencia: number;
+  totalYapePlin: number;
   totalGeneral: number;
   deudaMes: number;
   alumnosUnicos: number;
@@ -259,6 +260,7 @@ export async function getReporteIngresosMensual(
 
   const efectivo = abonos.filter((a) => a.metodoPago === "efectivo").reduce((s, a) => s + Number(a.monto), 0);
   const transferencia = abonos.filter((a) => a.metodoPago === "transferencia").reduce((s, a) => s + Number(a.monto), 0);
+  const yapePlin = abonos.filter((a) => a.metodoPago === "yape" || a.metodoPago === "plin").reduce((s, a) => s + Number(a.monto), 0);
   const deudaMes = deudas.reduce((s, d) => s + Math.max(0, Number(d.montoTotal) - Number(d.montoPagado)), 0);
   const alumnosUnicos = new Set(abonos.map((a) => a.mesPago.matricula.alumno.id)).size;
 
@@ -276,7 +278,8 @@ export async function getReporteIngresosMensual(
     })),
     totalEfectivo: efectivo,
     totalTransferencia: transferencia,
-    totalGeneral: efectivo + transferencia,
+    totalYapePlin: yapePlin,
+    totalGeneral: efectivo + transferencia + yapePlin,
     deudaMes,
     alumnosUnicos,
   };
@@ -307,7 +310,7 @@ export async function getReporteIngresosAnual(
     byMes[m].cobrado += Number(a.monto);
     byMes[m].count++;
     if (a.metodoPago === "efectivo") byMes[m].efectivo += Number(a.monto);
-    else byMes[m].transferencia += Number(a.monto);
+    else byMes[m].transferencia += Number(a.monto); // transferencia, yape, plin agrupados como "digital"
   }
 
   const deudaPorMes: Record<number, number> = {};

@@ -15,7 +15,7 @@ type CartItem = { idProducto: string; nombre: string; precio: number; cantidad: 
 
 // ─── Abrir caja ───────────────────────────────────────────────────────────────
 
-function AbrirCajaPanel({ idUsuario }: { idUsuario: string }) {
+function AbrirCajaPanel() {
   const [monto, setMonto] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -23,7 +23,7 @@ function AbrirCajaPanel({ idUsuario }: { idUsuario: string }) {
     const val = parseFloat(monto);
     if (isNaN(val) || val < 0) { toast.error("Ingresa un monto válido"); return; }
     startTransition(async () => {
-      const res = await abrirCaja(idUsuario, val);
+      const res = await abrirCaja(val);
       if (res.error) toast.error(res.error);
       else toast.success("Caja abierta");
     });
@@ -127,8 +127,8 @@ function CerrarCajaModal({
 // ─── POS (caja abierta) ───────────────────────────────────────────────────────
 
 function PosView({
-  caja, productos, idUsuario, ventasDelDia,
-}: { caja: CajaSerialized; productos: ProductoSerialized[]; idUsuario: string; ventasDelDia: { total: number; count: number } }) {
+  caja, productos, ventasDelDia,
+}: { caja: CajaSerialized; productos: ProductoSerialized[]; ventasDelDia: { total: number; count: number } }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isPending, startTransition] = useTransition();
   const [showCierre, setShowCierre] = useState(false);
@@ -168,7 +168,7 @@ function PosView({
     if (!cart.length) { toast.error("El carrito está vacío"); return; }
     startTransition(async () => {
       const items: VentaItemInput[] = cart.map((c) => ({ idProducto: c.idProducto, cantidad: c.cantidad, precioUnit: c.precio }));
-      const res = await registrarVenta(idUsuario, items);
+      const res = await registrarVenta(items);
       if (res.error) { toast.error(res.error); return; }
       toast.success(`Venta registrada — S/ ${totalCart.toFixed(2)}`);
       setCart([]);
@@ -327,14 +327,13 @@ function CajaCerradaPanel({ caja, totalVentas }: { caja: CajaSerialized; totalVe
 // ─── Export principal ─────────────────────────────────────────────────────────
 
 export function CajaView({
-  caja, productos, idUsuario, ventasDelDia,
+  caja, productos, ventasDelDia,
 }: {
   caja: CajaSerialized | null;
   productos: ProductoSerialized[];
-  idUsuario: string;
   ventasDelDia: { total: number; count: number };
 }) {
-  if (!caja) return <AbrirCajaPanel idUsuario={idUsuario} />;
+  if (!caja) return <AbrirCajaPanel />;
   if (caja.estado === "cerrada") return <CajaCerradaPanel caja={caja} totalVentas={ventasDelDia.total} />;
-  return <PosView caja={caja} productos={productos} idUsuario={idUsuario} ventasDelDia={ventasDelDia} />;
+  return <PosView caja={caja} productos={productos} ventasDelDia={ventasDelDia} />;
 }

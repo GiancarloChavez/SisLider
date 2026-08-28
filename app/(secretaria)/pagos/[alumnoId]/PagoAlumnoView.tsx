@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, CreditCard, Banknote, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, CreditCard, Banknote, Smartphone, Wallet, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   registrarAbono,
@@ -141,9 +141,10 @@ function AbonoDialog({
               {mesPago.abonos.map((ab) => (
                 <li key={ab.id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <div className="flex items-center gap-2">
-                    {ab.metodoPago === "efectivo"
-                      ? <Banknote className="h-3.5 w-3.5 text-zinc-400" />
-                      : <CreditCard className="h-3.5 w-3.5 text-zinc-400" />}
+                    {ab.metodoPago === "efectivo"   ? <Banknote    className="h-3.5 w-3.5 text-zinc-400" /> :
+                     ab.metodoPago === "yape"        ? <Smartphone  className="h-3.5 w-3.5 text-zinc-400" /> :
+                     ab.metodoPago === "plin"        ? <Wallet      className="h-3.5 w-3.5 text-zinc-400" /> :
+                                                       <CreditCard  className="h-3.5 w-3.5 text-zinc-400" />}
                     <span className="text-zinc-600 capitalize">{ab.metodoPago}</span>
                     {ab.observacion && (
                       <span className="text-zinc-400 text-xs">· {ab.observacion}</span>
@@ -186,14 +187,19 @@ function AbonoDialog({
           <div className="space-y-1.5">
             <Label>Método de pago *</Label>
             <div className="grid grid-cols-2 gap-2">
-              {(["efectivo", "transferencia"] as const).map((m) => (
+              {([
+                { value: "efectivo",      label: "Efectivo",      Icon: Banknote },
+                { value: "transferencia", label: "Transferencia",  Icon: CreditCard },
+                { value: "yape",          label: "Yape",           Icon: Smartphone },
+                { value: "plin",          label: "Plin",           Icon: Wallet },
+              ] as const).map(({ value, label, Icon }) => (
                 <label
-                  key={m}
+                  key={value}
                   className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 cursor-pointer has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-50 transition-colors"
                 >
-                  <input type="radio" name="metodoPago" value={m} defaultChecked={m === "efectivo"} className="sr-only" />
-                  {m === "efectivo" ? <Banknote className="h-4 w-4 text-zinc-500" /> : <CreditCard className="h-4 w-4 text-zinc-500" />}
-                  <span className="text-sm font-medium capitalize text-zinc-800">{m}</span>
+                  <input type="radio" name="metodoPago" value={value} defaultChecked={value === "efectivo"} className="sr-only" />
+                  <Icon className="h-4 w-4 text-zinc-500" />
+                  <span className="text-sm font-medium text-zinc-800">{label}</span>
                 </label>
               ))}
             </div>

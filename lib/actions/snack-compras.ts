@@ -51,14 +51,13 @@ export async function getCompras(): Promise<CompraSerialized[]> {
 
 export async function createCompra(data: {
   idProveedor: string;
-  idUsuario?: string;
   observacion?: string;
   items: CompraItemInput[];
 }): Promise<{ error?: string }> {
   if (!data.items.length) return { error: "Agrega al menos un producto." };
 
   const session = await auth();
-  const idUsuario = data.idUsuario || session?.user?.id;
+  const idUsuario = session?.user?.id;
   if (!idUsuario) return { error: "No autenticado." };
 
   const total = data.items.reduce((s, i) => s + i.cantidad * i.precioUnit, 0);

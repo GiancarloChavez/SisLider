@@ -15,6 +15,8 @@ export const C = {
   amberBg:  "#fef3c7",
   blue:     "#1e40af",
   blueBg:   "#dbeafe",
+  purple:   "#6b21a8",
+  purpleBg: "#f3e8ff",
 };
 
 export const S = StyleSheet.create({
@@ -274,6 +276,15 @@ export const S = StyleSheet.create({
     fontSize:         7,
     color:            C.blue,
     backgroundColor:  C.blueBg,
+    borderRadius:     8,
+    paddingHorizontal: 5,
+    paddingVertical:  1.5,
+  },
+  badgePurple: {
+    fontFamily:       "Helvetica-Bold",
+    fontSize:         7,
+    color:            C.purple,
+    backgroundColor:  C.purpleBg,
     borderRadius:     8,
     paddingHorizontal: 5,
     paddingVertical:  1.5,

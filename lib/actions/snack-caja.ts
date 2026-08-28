@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export type CajaSerialized = {
   id: string;
@@ -34,9 +35,12 @@ export async function getCajaHoy(): Promise<CajaSerialized | null> {
 }
 
 export async function abrirCaja(
-  idUsuario: string,
   montoApertura: number
 ): Promise<{ error?: string }> {
+  const session = await auth();
+  const idUsuario = session?.user?.id;
+  if (!idUsuario) return { error: "No autenticado." };
+
   const existing = await prisma.snackCajaDiaria.findUnique({ where: { fecha: todayDate() } });
   if (existing) return { error: "Ya existe una caja para hoy." };
   if (montoApertura < 0) return { error: "El monto de apertura no puede ser negativo." };

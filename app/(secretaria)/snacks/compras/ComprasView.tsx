@@ -52,7 +52,6 @@ function NuevaCompraDialog({
     startTransition(async () => {
       const res = await createCompra({
         idProveedor,
-        idUsuario: "",
         observacion,
         items: lineas.map((l) => ({ idProducto: l.idProducto, cantidad: l.cantidad, precioUnit: l.precioUnit })),
       });

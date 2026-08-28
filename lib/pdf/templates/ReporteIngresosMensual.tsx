@@ -6,6 +6,8 @@ import type { ReporteIngresosMensualData } from "../queries";
 function MetodoBadge({ metodo }: { metodo: string }) {
   if (metodo === "efectivo")      return <Text style={S.badgeGreen}>Efectivo</Text>;
   if (metodo === "transferencia") return <Text style={S.badgeBlue}>Transferencia</Text>;
+  if (metodo === "yape")          return <Text style={S.badgePurple}>Yape</Text>;
+  if (metodo === "plin")          return <Text style={S.badgePurple}>Plin</Text>;
   return <Text style={S.badgeGray}>{metodo}</Text>;
 }
 
@@ -128,6 +130,13 @@ export function ReporteIngresosMensual({ data }: { data: ReporteIngresosMensualD
                 <Text style={S.infoValue}>S/{data.totalTransferencia.toFixed(2)}</Text>
                 <Text style={[S.tableCellMuted, { marginTop: 2 }]}>
                   {data.abonos.filter((a) => a.metodoPago === "transferencia").length} transacciones
+                </Text>
+              </View>
+              <View style={S.infoBox}>
+                <Text style={S.infoLabel}>Yape / Plin</Text>
+                <Text style={S.infoValue}>S/{data.totalYapePlin.toFixed(2)}</Text>
+                <Text style={[S.tableCellMuted, { marginTop: 2 }]}>
+                  {data.abonos.filter((a) => a.metodoPago === "yape" || a.metodoPago === "plin").length} transacciones
                 </Text>
               </View>
               <View style={S.infoBoxLast}>

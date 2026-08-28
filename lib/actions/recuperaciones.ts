@@ -252,8 +252,12 @@ export async function completarRecuperacion(id: string): Promise<{ error?: strin
   if (!r) return { error: "Recuperación no encontrada" };
   if (r.estado === "completada") return { error: "Ya está completada" };
 
-  await prisma.recuperacion.update({ where: { id }, data: { estado: "completada" } });
+  await prisma.$transaction([
+    prisma.recuperacion.update({ where: { id }, data: { estado: "completada" } }),
+    prisma.asistencia.update({ where: { id: r.idAsistencia }, data: { estado: "justificado" } }),
+  ]);
   revalidateTag("recuperaciones");
+  revalidateTag("asistencias");
   return {};
 }
 

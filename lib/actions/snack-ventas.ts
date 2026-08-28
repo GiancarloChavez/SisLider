@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export type VentaItemInput = {
   idProducto: string;
@@ -62,10 +63,13 @@ export async function getVentasDelDia(fecha: string): Promise<{ total: number; c
 }
 
 export async function registrarVenta(
-  idUsuario: string,
   items: VentaItemInput[]
 ): Promise<{ error?: string }> {
   if (!items.length) return { error: "El carrito está vacío." };
+
+  const session = await auth();
+  const idUsuario = session?.user?.id;
+  if (!idUsuario) return { error: "No autenticado." };
 
   // Verificar caja abierta hoy
   const hoy = new Date();
