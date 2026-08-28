@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Search, CheckCircle2, Users, X, Clock, ChevronRight, ChevronLeft,
-  UserPlus, UserSearch, Plus,
+  UserPlus, UserSearch, Plus, Banknote, CreditCard, Smartphone, Wallet,
 } from "lucide-react";
 import {
   buscarAlumnos,
@@ -168,7 +168,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   // ── Step 3: pago ──
   const [descuentoId, setDescuentoId] = useState("");
   const [montoStr, setMontoStr] = useState("");
-  const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia">("efectivo");
+  const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia" | "yape" | "plin">("efectivo");
   const [pagoCompleto, setPagoCompleto] = useState(true);
   const [submitErrors, setSubmitErrors] = useState<Record<string, string[]>>({});
   const [isPending, startTransition] = useTransition();
@@ -929,20 +929,26 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
 
             <div className="space-y-1.5">
               <Label>Método de pago *</Label>
-              <div className="flex gap-2">
-                {(["efectivo", "transferencia"] as const).map(m => (
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: "efectivo",      label: "Efectivo",      Icon: Banknote },
+                  { value: "transferencia", label: "Transferencia",  Icon: CreditCard },
+                  { value: "yape",          label: "Yape",           Icon: Smartphone },
+                  { value: "plin",          label: "Plin",           Icon: Wallet },
+                ] as const).map(({ value, label, Icon }) => (
                   <button
-                    key={m}
+                    key={value}
                     type="button"
-                    onClick={() => setMetodoPago(m)}
+                    onClick={() => setMetodoPago(value)}
                     className={cn(
-                      "flex-1 rounded-lg border py-2.5 text-sm font-medium transition-colors capitalize",
-                      metodoPago === m
+                      "flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-colors",
+                      metodoPago === value
                         ? "border-zinc-900 bg-zinc-900 text-white"
                         : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
                     )}
                   >
-                    {m}
+                    <Icon className="h-4 w-4" />
+                    {label}
                   </button>
                 ))}
               </div>

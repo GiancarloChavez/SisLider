@@ -486,7 +486,7 @@ export type MatriculaConPagoInput = {
   dias: string[];
   idDescuento?: string;
   montoAbono: number;
-  metodoPago: "efectivo" | "transferencia";
+  metodoPago: "efectivo" | "transferencia" | "yape" | "plin";
 };
 
 export type MatriculaConPagoResult = {

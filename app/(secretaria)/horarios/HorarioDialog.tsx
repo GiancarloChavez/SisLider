@@ -356,7 +356,11 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
 
   const [autoNumero, setAutoNumero]       = useState(true);
   const [nextNumero, setNextNumero]       = useState<number | null>(null);
-  const [selectedCurso, setSelectedCurso] = useState(horario?.idCurso ?? "");
+  const [selectedCurso,   setSelectedCurso]   = useState(horario?.idCurso   ?? "");
+  const [selectedDocente, setSelectedDocente] = useState(horario?.idDocente ?? "");
+  const [selectedAula,    setSelectedAula]    = useState(horario?.idAula    ?? "");
+  const [precioStr,       setPrecioStr]       = useState(horario?.precioMensual ? String(horario.precioMensual) : "");
+  const [numeroGrupoStr,  setNumeroGrupoStr]  = useState(horario?.numeroGrupo   ?? "");
   const [, startFetch] = useTransition();
 
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>(horario?.dias ?? []);
@@ -378,10 +382,15 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
     setHandled(false);
     if (!horario) {
       setAutoNumero(true); setSelectedCurso(""); setNextNumero(null);
+      setSelectedDocente(""); setSelectedAula(""); setPrecioStr(""); setNumeroGrupoStr("");
       setDiasSeleccionados([]); setCantidadMeses(""); setFechaInicioVal("");
       setFechaInicioError(null); setPeriodos([]); setPeriodosModificados(false);
     } else {
       setSelectedCurso(horario.idCurso);
+      setSelectedDocente(horario.idDocente);
+      setSelectedAula(horario.idAula);
+      setPrecioStr(String(horario.precioMensual));
+      setNumeroGrupoStr(horario.numeroGrupo);
       setDiasSeleccionados(horario.dias);
       setCantidadMeses(horario.cantidadMeses ? String(horario.cantidadMeses) : "");
       setFechaInicioVal(horario.fechaInicio ?? "");
@@ -489,7 +498,7 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
               {/* Curso */}
               <div className="space-y-1">
                 <Label htmlFor="idCurso">Curso *</Label>
-                <select id="idCurso" name="idCurso" defaultValue={horario?.idCurso ?? ""} className={SELECT_CLASS}
+                <select id="idCurso" name="idCurso" value={selectedCurso} className={SELECT_CLASS}
                   onChange={(e) => setSelectedCurso(e.target.value)}>
                   <option value="">Selecciona un curso</option>
                   {selectData.cursos.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -501,7 +510,8 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="idDocente">Docente *</Label>
-                  <select id="idDocente" name="idDocente" defaultValue={horario?.idDocente ?? ""} className={SELECT_CLASS}>
+                  <select id="idDocente" name="idDocente" value={selectedDocente} className={SELECT_CLASS}
+                    onChange={(e) => setSelectedDocente(e.target.value)}>
                     <option value="">— Docente —</option>
                     {selectData.docentes.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                   </select>
@@ -509,7 +519,8 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="idAula">Aula *</Label>
-                  <select id="idAula" name="idAula" defaultValue={horario?.idAula ?? ""} className={SELECT_CLASS}>
+                  <select id="idAula" name="idAula" value={selectedAula} className={SELECT_CLASS}
+                    onChange={(e) => setSelectedAula(e.target.value)}>
                     <option value="">— Aula —</option>
                     {selectData.aulas.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
                   </select>
@@ -545,7 +556,8 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
                     <div className="space-y-1">
                       <Label htmlFor="numeroGrupo">{horario ? "N° grupo" : "N° manual *"}</Label>
                       <Input id="numeroGrupo" name="numeroGrupo" type="number" min="1" step="1"
-                        defaultValue={horario?.numeroGrupo ?? ""} placeholder="Ej: 5" />
+                        value={numeroGrupoStr} onChange={e => setNumeroGrupoStr(e.target.value)}
+                        placeholder="Ej: 5" />
                       {e.numeroGrupo && <p className="text-xs text-destructive">{e.numeroGrupo[0]}</p>}
                     </div>
                   )}
@@ -553,7 +565,8 @@ export function HorarioDialog({ open, onClose, horario, selectData }: Props) {
                 <div className="space-y-1">
                   <Label htmlFor="precioMensual">Precio/mes (S/) *</Label>
                   <Input id="precioMensual" name="precioMensual" type="number" step="0.01" min="0.01"
-                    defaultValue={horario?.precioMensual ?? ""} placeholder="0.00" />
+                    value={precioStr} onChange={e => setPrecioStr(e.target.value)}
+                    placeholder="0.00" />
                   {e.precioMensual && <p className="text-xs text-destructive">{e.precioMensual[0]}</p>}
                 </div>
               </div>
