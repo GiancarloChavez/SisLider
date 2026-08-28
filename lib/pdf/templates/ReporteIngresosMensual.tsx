@@ -4,10 +4,9 @@ import { S, C } from "../styles";
 import type { ReporteIngresosMensualData } from "../queries";
 
 function MetodoBadge({ metodo }: { metodo: string }) {
-  if (metodo === "efectivo")      return <Text style={S.badgeGreen}>Efectivo</Text>;
-  if (metodo === "transferencia") return <Text style={S.badgeBlue}>Transferencia</Text>;
-  if (metodo === "yape")          return <Text style={S.badgePurple}>Yape</Text>;
-  if (metodo === "plin")          return <Text style={S.badgePurple}>Plin</Text>;
+  if (metodo === "efectivo")                          return <Text style={S.badgeGreen}>Efectivo</Text>;
+  if (metodo === "transferencia")                     return <Text style={S.badgeBlue}>Transferencia</Text>;
+  if (metodo === "yape" || metodo === "plin")         return <Text style={S.badgePurple}>Yape / Plin</Text>;
   return <Text style={S.badgeGray}>{metodo}</Text>;
 }
 

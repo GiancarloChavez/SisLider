@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Search, CheckCircle2, Users, X, Clock, ChevronRight, ChevronLeft,
-  UserPlus, UserSearch, Plus, Banknote, CreditCard, Smartphone, Wallet,
+  UserPlus, UserSearch, Plus, Banknote, CreditCard, Smartphone,
 } from "lucide-react";
 import {
   buscarAlumnos,
@@ -168,7 +168,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   // ── Step 3: pago ──
   const [descuentoId, setDescuentoId] = useState("");
   const [montoStr, setMontoStr] = useState("");
-  const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia" | "yape" | "plin">("efectivo");
+  const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia" | "yape">("efectivo");
   const [pagoCompleto, setPagoCompleto] = useState(true);
   const [submitErrors, setSubmitErrors] = useState<Record<string, string[]>>({});
   const [isPending, startTransition] = useTransition();
@@ -929,12 +929,11 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
 
             <div className="space-y-1.5">
               <Label>Método de pago *</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {([
                   { value: "efectivo",      label: "Efectivo",      Icon: Banknote },
                   { value: "transferencia", label: "Transferencia",  Icon: CreditCard },
-                  { value: "yape",          label: "Yape",           Icon: Smartphone },
-                  { value: "plin",          label: "Plin",           Icon: Wallet },
+                  { value: "yape",          label: "Yape / Plin",   Icon: Smartphone },
                 ] as const).map(({ value, label, Icon }) => (
                   <button
                     key={value}

@@ -191,7 +191,7 @@ export async function getAlumnoPagos(alumnoId: string): Promise<AlumnoPagoDetall
 const abonoSchema = z.object({
   idMesPago: z.string().min(1, "Mes de pago requerido"),
   monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
-  metodoPago: z.enum(["efectivo", "transferencia", "yape", "plin"], { message: "Selecciona un método de pago" }),
+  metodoPago: z.enum(["efectivo", "transferencia", "yape"], { message: "Selecciona un método de pago" }),
   observacion: z.string().optional(),
 });
 
