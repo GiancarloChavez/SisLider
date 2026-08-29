@@ -186,6 +186,57 @@ export async function getAlumnoPagos(alumnoId: string): Promise<AlumnoPagoDetall
   };
 }
 
+// ─── Registro global de abonos ───────────────────────────────────────────────
+
+export type RegistroAbonoItem = {
+  id: string;
+  alumnoId: string;
+  alumnoNombre: string;
+  alumnoApellido: string;
+  alumnoDni: string | null;
+  curso: string;
+  mes: number;
+  anio: number;
+  monto: number;
+  metodoPago: string;
+  fechaPago: string;
+};
+
+export async function getRegistroAbonos(): Promise<RegistroAbonoItem[]> {
+  const abonos = await prisma.abono.findMany({
+    orderBy: { fechaPago: "desc" },
+    take: 300,
+    include: {
+      mesPago: {
+        include: {
+          matricula: {
+            include: {
+              alumno: { select: { id: true, nombre: true, apellido: true, dni: true } },
+              horario: { include: { curso: { select: { nombre: true } } } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return abonos.map((a) => ({
+    id: a.id,
+    alumnoId: a.mesPago.matricula.alumno.id,
+    alumnoNombre: a.mesPago.matricula.alumno.nombre,
+    alumnoApellido: a.mesPago.matricula.alumno.apellido,
+    alumnoDni: a.mesPago.matricula.alumno.dni,
+    curso: a.mesPago.matricula.horario.curso.nombre,
+    mes: a.mesPago.mes,
+    anio: a.mesPago.anio,
+    monto: Number(a.monto),
+    metodoPago: a.metodoPago,
+    fechaPago: new Date(a.fechaPago).toLocaleDateString("es-PE", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    }),
+  }));
+}
+
 // ─── Registrar abono ──────────────────────────────────────────────────────────
 
 const abonoSchema = z.object({

@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, CreditCard, Banknote, Smartphone, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, CreditCard, Banknote, Smartphone, Trash2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   registrarAbono,
@@ -160,6 +160,16 @@ function AbonoDialog({
                       {new Date(ab.fechaPago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}
                     </span>
                     <span className="font-mono font-semibold text-zinc-800">S/{ab.monto.toFixed(2)}</span>
+                    <a
+                      href={`/api/pdf/nota-pago/${ab.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Ver Nota de Pago"
+                      className="text-zinc-300 hover:text-zinc-600 transition-colors"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </a>
                   </div>
                 </li>
               ))}

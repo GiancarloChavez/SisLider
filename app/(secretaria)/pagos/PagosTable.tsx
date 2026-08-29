@@ -11,9 +11,9 @@ import { Search, ChevronRight, AlertCircle, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AlumnoPagoResumen } from "@/lib/actions/pagos";
 
-type Props = { alumnos: AlumnoPagoResumen[] };
+type Props = { alumnos: AlumnoPagoResumen[]; noHeader?: boolean };
 
-export function PagosTable({ alumnos }: Props) {
+export function PagosTable({ alumnos, noHeader }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [soloDeudores, setSoloDeudores] = useState(false);
@@ -36,22 +36,23 @@ export function PagosTable({ alumnos }: Props) {
 
   return (
     <>
-      {/* Page header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Pagos</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            {alumnos.length} alumno{alumnos.length !== 1 ? "s" : ""} con matrícula activa
-          </p>
-        </div>
-        {conDeuda > 0 && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-right">
-            <p className="text-xs font-medium text-red-500 uppercase tracking-wide">Total por cobrar</p>
-            <p className="text-xl font-bold font-mono text-red-600 mt-0.5">S/{totalDeuda.toFixed(2)}</p>
-            <p className="text-xs text-red-400 mt-0.5">{conDeuda} alumno{conDeuda !== 1 ? "s" : ""} con deuda</p>
+      {!noHeader && (
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900">Pagos</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">
+              {alumnos.length} alumno{alumnos.length !== 1 ? "s" : ""} con matrícula activa
+            </p>
           </div>
-        )}
-      </div>
+          {conDeuda > 0 && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-right">
+              <p className="text-xs font-medium text-red-500 uppercase tracking-wide">Total por cobrar</p>
+              <p className="text-xl font-bold font-mono text-red-600 mt-0.5">S/{totalDeuda.toFixed(2)}</p>
+              <p className="text-xs text-red-400 mt-0.5">{conDeuda} alumno{conDeuda !== 1 ? "s" : ""} con deuda</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
         {/* Toolbar */}

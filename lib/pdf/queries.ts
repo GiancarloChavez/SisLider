@@ -125,7 +125,67 @@ export type AlumnoListItem = {
   dni: string | null;
 };
 
+export type NotaPagoData = {
+  numero: string;
+  fechaEmision: string;
+  alumno: { nombre: string; apellido: string; dni: string | null };
+  descripcion: string;
+  monto: number;
+  metodoPago: string;
+};
+
 // ── Queries ───────────────────────────────────────────────────────────────────
+
+const DIA_ABREV_NOTA: Record<string, string> = {
+  Lunes: "L", Martes: "M", "Miércoles": "X", Jueves: "J", Viernes: "V", Sábado: "S", Domingo: "D",
+};
+
+export async function getNotaPagoData(abonoId: string): Promise<NotaPagoData | null> {
+  const abono = await prisma.abono.findUnique({
+    where: { id: abonoId },
+    include: {
+      mesPago: {
+        include: {
+          matricula: {
+            include: {
+              alumno: { select: { nombre: true, apellido: true, dni: true } },
+              horario: { include: { curso: { select: { nombre: true } } } },
+              dias: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!abono) return null;
+
+  const count = await prisma.abono.count({ where: { createdAt: { lte: abono.createdAt } } });
+  const numero = `001-${String(count).padStart(4, "0")}`;
+  const fechaEmision = new Date(abono.fechaPago).toLocaleDateString("es-PE", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+
+  const m = abono.mesPago.matricula;
+  const DIA_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const diasStr = [...m.dias]
+    .sort((a, b) => DIA_ORDER.indexOf(a.dia) - DIA_ORDER.indexOf(b.dia))
+    .map((d) => DIA_ABREV_NOTA[d.dia] ?? d.dia)
+    .join("/");
+  const hi = m.horario.horaInicio.toISOString().slice(11, 16);
+  const hf = m.horario.horaFin.toISOString().slice(11, 16);
+  const periodo = `${MESES_ES[abono.mesPago.mes - 1]} ${abono.mesPago.anio}`;
+  const descripcion = `${m.horario.curso.nombre} — ${diasStr} ${hi}/${hf} — ${periodo}`;
+
+  return {
+    numero,
+    fechaEmision,
+    alumno: { nombre: m.alumno.nombre, apellido: m.alumno.apellido, dni: m.alumno.dni },
+    descripcion,
+    monto: Number(abono.monto),
+    metodoPago: abono.metodoPago,
+  };
+}
 
 export async function getAlumnosList(): Promise<AlumnoListItem[]> {
   return prisma.alumno.findMany({
