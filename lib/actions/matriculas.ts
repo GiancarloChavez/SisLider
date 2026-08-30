@@ -20,6 +20,7 @@ export type HorarioConCupo = {
   id: string;
   numeroGrupo: string;
   precioMensual: number;
+  cantidadMeses?: number;
   fechaInicio?: string;
   fechaFin?: string;
   horaInicio: string;
@@ -128,6 +129,7 @@ export async function getMatriculaFormData(): Promise<{
     horaFin: h.horaFin.toISOString().slice(11, 16),
     cupoOcupado: h._count.matriculas,
     dias: h.dias.map((d) => d.dia),
+    cantidadMeses: h.cantidadMeses ?? undefined,
     fechaInicio: h.fechaInicio ? h.fechaInicio.toISOString().slice(0, 10) : undefined,
     fechaFin: h.fechaFin ? h.fechaFin.toISOString().slice(0, 10) : undefined,
     curso: { nombre: h.curso.nombre },

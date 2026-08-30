@@ -223,9 +223,28 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   }, [horarioSel]);
 
   const maxMeses = useMemo(() => {
-    if (!horarioSel?.fechaFin) return 12;
+    if (!horarioSel) return 12;
+    // Prefer cantidadMeses from DB — it's the source of truth for course duration
+    if (horarioSel.cantidadMeses && horarioSel.cantidadMeses > 1) {
+      // If the course already started, remaining months = total - elapsed
+      if (horarioSel.fechaInicio) {
+        const fi = new Date(horarioSel.fechaInicio + "T00:00:00");
+        if (fi <= new Date()) {
+          const elapsed = (pagoRef.getFullYear() - fi.getFullYear()) * 12 + (pagoRef.getMonth() - fi.getMonth());
+          const remaining = horarioSel.cantidadMeses - elapsed;
+          return Math.max(1, Math.min(remaining, 24));
+        }
+      }
+      return Math.min(horarioSel.cantidadMeses, 24);
+    }
+    // Fallback: compute from fechaFin
+    if (!horarioSel.fechaFin) return 1;
     const fi = new Date(horarioSel.fechaFin + "T00:00:00");
-    const diff = (fi.getFullYear() - pagoRef.getFullYear()) * 12 + (fi.getMonth() - pagoRef.getMonth()) + 1;
+    // Use last day of the month containing fechaFin to avoid off-by-one when
+    // fechaFin is stored as the first day of the following month
+    const lastMonth = fi.getDate() === 1 ? fi.getMonth() - 1 : fi.getMonth();
+    const lastYear = fi.getDate() === 1 && fi.getMonth() === 0 ? fi.getFullYear() - 1 : fi.getFullYear();
+    const diff = (lastYear - pagoRef.getFullYear()) * 12 + (lastMonth - pagoRef.getMonth()) + 1;
     return Math.max(1, Math.min(diff, 24));
   }, [horarioSel, pagoRef]);
 
