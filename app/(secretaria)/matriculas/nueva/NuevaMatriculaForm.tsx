@@ -170,6 +170,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
   const [montoStr, setMontoStr] = useState("");
   const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia" | "yape">("efectivo");
   const [pagoCompleto, setPagoCompleto] = useState(true);
+  const [mesesAPagar, setMesesAPagar] = useState(1);
   const [submitErrors, setSubmitErrors] = useState<Record<string, string[]>>({});
   const [isPending, startTransition] = useTransition();
 
@@ -209,10 +210,35 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
       : Math.min(descuentoSel.valor, precioBase)
     : 0;
   const precioFinal = precioBase - descuentoImporte;
+  const totalMeses = precioFinal * mesesAPagar;
+
+  // Fecha de referencia del primer mes (igual que server action)
+  const pagoRef = useMemo(() => {
+    const hoy = new Date();
+    if (horarioSel?.fechaInicio) {
+      const fi = new Date(horarioSel.fechaInicio + "T00:00:00");
+      if (fi > hoy) return fi;
+    }
+    return hoy;
+  }, [horarioSel]);
+
+  const maxMeses = useMemo(() => {
+    if (!horarioSel?.fechaFin) return 12;
+    const fi = new Date(horarioSel.fechaFin + "T00:00:00");
+    const diff = (fi.getFullYear() - pagoRef.getFullYear()) * 12 + (fi.getMonth() - pagoRef.getMonth()) + 1;
+    return Math.max(1, Math.min(diff, 24));
+  }, [horarioSel, pagoRef]);
+
+  const mesesLabels = useMemo(() =>
+    Array.from({ length: mesesAPagar }, (_, i) => {
+      const d = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + i, 1);
+      return `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    }),
+  [mesesAPagar, pagoRef]);
 
   useEffect(() => {
-    if (pagoCompleto) setMontoStr(precioFinal > 0 ? precioFinal.toFixed(2) : "");
-  }, [pagoCompleto, precioFinal]);
+    if (pagoCompleto) setMontoStr(totalMeses > 0 ? totalMeses.toFixed(2) : "");
+  }, [pagoCompleto, totalMeses]);
 
   // ── Helpers ──
 
@@ -236,6 +262,12 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
     setHorarioSel(h);
     setDias([...h.dias].sort((a, b) => DIA_ORDER.indexOf(a) - DIA_ORDER.indexOf(b)));
     setDescuentoId("");
+    setPagoCompleto(true);
+    setMesesAPagar(1);
+  }
+
+  function handleSetMeses(n: number) {
+    setMesesAPagar(n);
     setPagoCompleto(true);
   }
 
@@ -291,6 +323,10 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
       setSubmitErrors({ montoAbono: ["Ingresa un monto válido mayor a 0"] });
       return;
     }
+    if (monto > totalMeses + 0.01) {
+      setSubmitErrors({ montoAbono: [`El monto no puede superar S/${totalMeses.toFixed(2)}`] });
+      return;
+    }
 
     const fechaNacimiento =
       nuevo.birthDay && nuevo.birthMonth && nuevo.birthYear
@@ -336,6 +372,7 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
         idDescuento: descuentoId || undefined,
         montoAbono: monto,
         metodoPago,
+        mesesAPagar,
       });
 
       if (result.errors) {
@@ -923,6 +960,70 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
             </div>
           </div>
 
+          {/* Meses a pagar */}
+          {maxMeses > 1 && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Meses a pagar</p>
+                {mesesAPagar > 1 && (
+                  <span className="text-xs text-zinc-400">
+                    {mesesLabels[0]}
+                    {mesesAPagar > 1 && ` — ${mesesLabels[mesesLabels.length - 1]}`}
+                  </span>
+                )}
+              </div>
+
+              {/* Selector numérico */}
+              <div className="flex flex-wrap gap-1.5">
+                {Array.from({ length: Math.min(maxMeses, 12) }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => handleSetMeses(n)}
+                    className={cn(
+                      "h-8 w-8 rounded-lg border text-sm font-semibold transition-colors",
+                      mesesAPagar === n
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+                {maxMeses > 12 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetMeses(maxMeses)}
+                    className={cn(
+                      "h-8 rounded-lg border px-3 text-sm font-semibold transition-colors",
+                      mesesAPagar === maxMeses
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
+                    )}
+                  >
+                    Todos ({maxMeses})
+                  </button>
+                )}
+              </div>
+
+              {/* Preview de meses */}
+              {mesesAPagar > 1 && (
+                <div className="rounded-lg bg-zinc-50 border border-zinc-100 px-4 py-3 space-y-1">
+                  <p className="text-xs text-zinc-400">
+                    {mesesLabels.slice(0, 6).join(" · ")}
+                    {mesesAPagar > 6 && ` · … · ${mesesLabels[mesesLabels.length - 1]}`}
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-zinc-900 font-mono text-base">S/{totalMeses.toFixed(2)}</span>
+                    <span className="text-xs text-zinc-400">
+                      {mesesAPagar} × S/{precioFinal.toFixed(2)}/mes
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Pago inicial */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Pago inicial</p>
@@ -965,8 +1066,14 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                   className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 shrink-0"
                 />
                 <div>
-                  <p className="text-sm font-medium text-zinc-900 leading-tight">Pago completo del mes</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">Abona S/{precioFinal.toFixed(2)} y el alumno queda habilitado.</p>
+                  <p className="text-sm font-medium text-zinc-900 leading-tight">
+                    {mesesAPagar > 1
+                      ? `Pago completo (${mesesAPagar} meses)`
+                      : "Pago completo del mes"}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Abona S/{totalMeses.toFixed(2)} y el alumno queda habilitado.
+                  </p>
                 </div>
               </label>
 
@@ -978,17 +1085,19 @@ export function NuevaMatriculaForm({ horarios, descuentos }: Props) {
                     <Input
                       type="number"
                       min="0.01"
-                      max={precioFinal}
+                      max={totalMeses}
                       step="0.01"
-                      placeholder={precioFinal.toFixed(2)}
+                      placeholder={totalMeses.toFixed(2)}
                       value={montoStr}
                       onChange={e => setMontoStr(e.target.value)}
                       className="pl-9 font-mono"
                     />
                   </div>
-                  {montoStr && parseFloat(montoStr) < precioFinal && parseFloat(montoStr) > 0 && (
+                  {montoStr && parseFloat(montoStr) < totalMeses && parseFloat(montoStr) > 0 && (
                     <p className="text-xs text-amber-600">
-                      Quedará un saldo pendiente de S/{(precioFinal - parseFloat(montoStr)).toFixed(2)} · el alumno permanecerá sin habilitar hasta saldar.
+                      {mesesAPagar > 1
+                        ? "El monto se distribuirá mes a mes. Los meses no cubiertos quedarán pendientes."
+                        : `Quedará un saldo de S/${(precioFinal - parseFloat(montoStr)).toFixed(2)} · el alumno permanecerá sin habilitar hasta saldar.`}
                     </p>
                   )}
                   {submitErrors.montoAbono && (

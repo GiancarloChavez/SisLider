@@ -487,6 +487,7 @@ export type MatriculaConPagoInput = {
   idDescuento?: string;
   montoAbono: number;
   metodoPago: "efectivo" | "transferencia" | "yape";
+  mesesAPagar?: number;
 };
 
 export type MatriculaConPagoResult = {
@@ -504,7 +505,8 @@ export async function createMatriculaConPago(
   const usuarioExiste = await prisma.usuario.count({ where: { id: idUsuario } });
   if (!usuarioExiste) return { errors: { _: ["Sesión caducada. Cierra sesión e inicia sesión nuevamente."] } };
 
-  const { alumnoId: existingAlumnoId, nuevoAlumno, idHorario, dias, idDescuento, montoAbono, metodoPago } = input;
+  const { alumnoId: existingAlumnoId, nuevoAlumno, idHorario, dias, idDescuento, montoAbono, metodoPago, mesesAPagar: rawMesesAPagar } = input;
+  const mesesAPagar = Math.max(1, Math.min(rawMesesAPagar ?? 1, 24));
 
   if (!existingAlumnoId && !nuevoAlumno) {
     return { errors: { alumno: ["Selecciona o registra un alumno"] } };
@@ -559,8 +561,9 @@ export async function createMatriculaConPago(
     }
   }
 
-  if (montoAbono > precioFinal + 0.01) {
-    return { errors: { montoAbono: [`El monto no puede superar S/${precioFinal.toFixed(2)}`] } };
+  const totalMaximo = precioFinal * mesesAPagar;
+  if (montoAbono > totalMaximo + 0.01) {
+    return { errors: { montoAbono: [`El monto no puede superar S/${totalMaximo.toFixed(2)}`] } };
   }
 
   const alumnoId = existingAlumnoId ?? randomUUID();
@@ -574,11 +577,35 @@ export async function createMatriculaConPago(
 
   const now = new Date();
   const pagoRef = (horario.fechaInicio && horario.fechaInicio > now) ? horario.fechaInicio : now;
-  const ultimoDiaMes = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + 1, 0);
 
   const matriculaId = randomUUID();
-  const mesPagoId = randomUUID();
-  const nuevoEstado = montoAbono >= precioFinal - 0.01 ? "pagado" : "parcial";
+
+  // Distribute montoAbono across the requested months in order
+  type MesPagoInfo = {
+    id: string; mes: number; anio: number; fechaVencimiento: Date;
+    montoPagado: number; estado: string; abonoMonto: number | null;
+  };
+  let restante = montoAbono;
+  const mesPagosInfo: MesPagoInfo[] = Array.from({ length: mesesAPagar }, (_, i) => {
+    const ref = new Date(pagoRef.getFullYear(), pagoRef.getMonth() + i, 1);
+    const fechaVencimiento = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+    let montoPagado = 0;
+    let estado = "pendiente";
+    let abonoMonto: number | null = null;
+    if (restante >= precioFinal - 0.01) {
+      montoPagado = precioFinal;
+      estado = "pagado";
+      abonoMonto = precioFinal;
+      restante -= precioFinal;
+    } else if (restante > 0) {
+      montoPagado = restante;
+      estado = "parcial";
+      abonoMonto = restante;
+      restante = 0;
+    }
+    return { id: randomUUID(), mes: ref.getMonth() + 1, anio: ref.getFullYear(), fechaVencimiento, montoPagado, estado, abonoMonto };
+  });
+  const todosPagados = mesPagosInfo.every((mp) => mp.estado === "pagado");
 
   let habilitado: boolean;
   if (existingAlumnoId) {
@@ -588,9 +615,9 @@ export async function createMatriculaConPago(
         estado: { in: ["pendiente", "parcial"] },
       },
     });
-    habilitado = nuevoEstado === "pagado" && otrosPendientes === 0;
+    habilitado = todosPagados && otrosPendientes === 0;
   } else {
-    habilitado = nuevoEstado === "pagado";
+    habilitado = todosPagados;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -659,23 +686,32 @@ export async function createMatriculaConPago(
         estado: "activa",
         dias: { create: dias.map((dia) => ({ dia })) },
       },
-    }),
-    prisma.mesPago.create({
-      data: {
-        id: mesPagoId,
-        idMatricula: matriculaId,
-        anio: pagoRef.getFullYear(),
-        mes: pagoRef.getMonth() + 1,
-        montoTotal: precioFinal,
-        montoPagado: montoAbono,
-        estado: nuevoEstado,
-        fechaVencimiento: ultimoDiaMes,
-      },
-    }),
-    prisma.abono.create({
-      data: { idMesPago: mesPagoId, idUsuario, monto: montoAbono, metodoPago },
     })
   );
+
+  for (const mp of mesPagosInfo) {
+    ops.push(
+      prisma.mesPago.create({
+        data: {
+          id: mp.id,
+          idMatricula: matriculaId,
+          anio: mp.anio,
+          mes: mp.mes,
+          montoTotal: precioFinal,
+          montoPagado: mp.montoPagado,
+          estado: mp.estado,
+          fechaVencimiento: mp.fechaVencimiento,
+        },
+      })
+    );
+    if (mp.abonoMonto !== null) {
+      ops.push(
+        prisma.abono.create({
+          data: { idMesPago: mp.id, idUsuario, monto: mp.abonoMonto, metodoPago },
+        })
+      );
+    }
+  }
 
   if (existingAlumnoId) {
     ops.push(prisma.alumno.update({ where: { id: alumnoId }, data: { habilitado } }));
